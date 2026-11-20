@@ -3,6 +3,8 @@ import { CheckCircle2, Linkedin, LoaderCircle, Rocket, Search } from "lucide-rea
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { AutopilotState } from "@/lib/agent/autopilot";
+import type { JobFeedback, SkipReason } from "@/lib/jobs/feedback";
+import { rankJobs, type JobSort } from "@/lib/jobs/personalize";
 import type { ApplicationRun, Job, Profile, ResumeVersion } from "@/lib/types";
 import { api, errorText } from "./_components/api";
 import { AutopilotPanel } from "./_components/AutopilotPanel";
@@ -15,6 +17,7 @@ import { SearchPanel } from "./_components/SearchPanel";
 import { Card, Eyebrow, Logo, Notice } from "./_components/ui";
 
 type ProfileResponse = { profile: Profile; versions: ResumeVersion[]; openai: { configured: boolean; model: string; agentModel: string } };
+type FeedbackResponse = { feedback: JobFeedback[]; savedJobs: Job[] };
 const ACTIVE = ["running", "needs_input", "blocked", "awaiting_approval"];
 const DETAIL_LABELS: [keyof Profile["preferences"], string][] = [
   ["workAuthorization", "work authorization"],
@@ -26,6 +29,12 @@ const DETAIL_LABELS: [keyof Profile["preferences"], string][] = [
 export default function Workspace() {
   const [data, setData] = useState<ProfileResponse | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [feedback, setFeedback] = useState<JobFeedback[]>([]);
+  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+  const [jobView, setJobView] = useState<"all" | "saved">("all");
+  const [jobSort, setJobSort] = useState<JobSort>("fit");
+  const [feedbackBusyId, setFeedbackBusyId] = useState<string>();
+  const [feedbackError, setFeedbackError] = useState("");
   const [searched, setSearched] = useState("");
   const [searchErrors, setSearchErrors] = useState<string[]>([]);
   const [selected, setSelected] = useState<Job | null>(null);
@@ -59,6 +68,9 @@ export default function Workspace() {
         if (a && (a.status === "searching" || a.status === "running")) setMode("autopilot");
       })
       .catch(() => {});
+    api<FeedbackResponse>("/api/job-feedback")
+      .then((result) => { setFeedback(result.feedback); setSavedJobs(result.savedJobs); })
+      .catch((err) => setFeedbackError(errorText(err)));
   }, [loadProfile, loadRuns]);
 
   const autopilotActive = autopilot?.status === "searching" || autopilot?.status === "running";
@@ -117,6 +129,28 @@ export default function Workspace() {
     setRuns((all) => all.map((r) => (r.id === run.id ? run : r)));
   }, []);
 
+  const onFeedback = async (job: Job, action: "save" | "skip" | "undo", reason?: SkipReason) => {
+    setFeedbackBusyId(job.id);
+    setFeedbackError("");
+    try {
+      const result = await api<FeedbackResponse>("/api/job-feedback", { json: { jobId: job.id, action, reason, query: searched } });
+      setFeedback(result.feedback);
+      setSavedJobs(result.savedJobs);
+      if (selected?.id === job.id && action === "skip") {
+        const next = (jobView === "saved" ? result.savedJobs : jobs).find((candidate) => candidate.id !== job.id && !result.feedback.some((item) => item.jobId === candidate.id && item.kind === "skipped"));
+        setSelected(next ?? null);
+      } else if (selected?.id === job.id && action === "undo" && jobView === "saved") {
+        setSelected(result.savedJobs[0] ?? null);
+      }
+      return true;
+    } catch (err) {
+      setFeedbackError(errorText(err));
+      return false;
+    } finally {
+      setFeedbackBusyId(undefined);
+    }
+  };
+
   const profile = data?.profile ?? null;
   const hasResume = Boolean(profile?.resume);
   const agentBusy = runs.some((r) => ACTIVE.includes(r.status)) || autopilotActive;
@@ -124,6 +158,7 @@ export default function Workspace() {
     ...(profile?.resume && !profile.resume.contact.location ? ["current location"] : []),
     ...DETAIL_LABELS.filter(([k]) => profile && !profile.preferences[k]).map(([, label]) => label),
   ];
+  const displayedJobs = jobView === "saved" ? savedJobs.map((job) => ({ job })) : rankJobs(jobs, feedback, searched, jobSort);
 
   return (
     <main className="mx-auto max-w-[1240px] px-4 pb-20 pt-5 sm:px-8">
@@ -192,12 +227,14 @@ export default function Workspace() {
           setJobs(found);
           setSearchErrors(errors);
           setSearched(q);
-          setSelected(found[0] ?? null);
+          setJobView("all");
+          setSelected(found.find((job) => !feedback.some((item) => item.jobId === job.id && item.kind === "skipped")) ?? null);
           setTimeout(() => document.getElementById("jobs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
         }}
         onImported={(job) => {
           setJobs((all) => [job, ...all.filter((j) => j.id !== job.id)]);
           setSearched((s) => s || "Imported link");
+          setJobView("all");
           setSelected(job);
           setTimeout(() => document.getElementById("jobs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
         }}
@@ -222,18 +259,31 @@ export default function Workspace() {
         <div>
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <Eyebrow>Live results</Eyebrow>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight">{searched ? `“${searched}”` : "Search to see live jobs"}</h2>
+              <Eyebrow>{jobView === "saved" ? "Saved jobs" : "Live results"}</Eyebrow>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight">{jobView === "saved" ? "Your saved roles" : searched ? `“${searched}”` : "Search to see live jobs"}</h2>
             </div>
-            {jobs.length > 0 && <span className="text-sm text-muted">{jobs.length} roles</span>}
+            <span className="text-sm text-muted">{displayedJobs.length} roles</span>
           </div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="inline-flex rounded-lg border border-line-strong bg-white p-0.5" role="group" aria-label="Job list">
+              <button type="button" aria-pressed={jobView === "all"} className={`rounded-md px-2.5 py-1.5 ${jobView === "all" ? "bg-ink text-white" : "text-muted hover:text-ink"}`} onClick={() => { setJobView("all"); setSelected(jobs.find((job) => !feedback.some((item) => item.jobId === job.id && item.kind === "skipped")) ?? null); }}>All</button>
+              <button type="button" aria-pressed={jobView === "saved"} className={`rounded-md px-2.5 py-1.5 ${jobView === "saved" ? "bg-ink text-white" : "text-muted hover:text-ink"}`} onClick={() => { setJobView("saved"); setSelected(savedJobs[0] ?? null); }}>Saved ({savedJobs.length})</button>
+            </div>
+            {jobView === "all" && jobs.length > 0 && (
+              <div className="inline-flex rounded-lg border border-line-strong bg-white p-0.5" role="group" aria-label="Sort jobs">
+                <button type="button" aria-pressed={jobSort === "fit"} className={`rounded-md px-2.5 py-1.5 ${jobSort === "fit" ? "bg-ink text-white" : "text-muted hover:text-ink"}`} onClick={() => setJobSort("fit")}>Fit</button>
+                <button type="button" aria-pressed={jobSort === "for-you"} className={`rounded-md px-2.5 py-1.5 ${jobSort === "for-you" ? "bg-ink text-white" : "text-muted hover:text-ink"}`} onClick={() => setJobSort("for-you")}>For you</button>
+              </div>
+            )}
+          </div>
+          {feedbackError && <div className="mb-3"><Notice tone="error">{feedbackError}</Notice></div>}
           {searchErrors.length > 0 && <div className="mb-3"><Notice tone="warn">{searchErrors.join(" · ")}</Notice></div>}
-          {jobs.length ? (
-            <JobList jobs={jobs} selectedId={selected?.id} onSelect={setSelected} />
+          {displayedJobs.length ? (
+            <JobList ranked={displayedJobs} feedback={feedback} selectedId={selected?.id} busyId={feedbackBusyId} onSelect={setSelected} onFeedback={onFeedback} />
           ) : (
             <Card className="text-center">
               <p className="text-sm text-muted">
-                {searched ? "No open roles matched. Try a broader title or another location." : "Results from LinkedIn and company career sites will appear here, ranked against your resume."}
+                {jobView === "saved" ? "No saved jobs yet. Save a role from search results to find it here." : searched ? "No open roles matched. Try a broader title or another location." : "Results from LinkedIn and company career sites will appear here, ranked against your resume."}
               </p>
             </Card>
           )}
