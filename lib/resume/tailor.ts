@@ -9,7 +9,6 @@ export async function tailorResume(base: ResumeData, resumeText: string, job: Jo
   const out = await structured({
     schema: tailorSchema,
     name: "tailored_resume",
-    effort: "medium",
     instructions: `You tailor a candidate's resume to one specific job.
 ${GROUNDING_RULES}
 Allowed edits:

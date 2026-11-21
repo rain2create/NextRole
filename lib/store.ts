@@ -83,11 +83,30 @@ export async function getJobs() {
 export async function getJob(id: string) {
   return (await getJobs())[id];
 }
-export async function saveJobs(jobs: Job[]) {
+let jobsLock: Promise<unknown> = Promise.resolve();
+export function saveJobs(jobs: Job[]) {
+  const task = jobsLock.then(async () => {
   const all = await getJobs();
   for (const job of jobs) all[job.id] = { ...all[job.id], ...job };
   await writeJson("jobs.json", all);
   return jobs.map((j) => all[j.id]);
+  });
+  jobsLock = task.catch(() => {});
+  return task;
+}
+
+export type SearchFeedback = { id: string; jobId: string; title: string; company: string; direction: string; reason: "公司" | "方向" | "薪资"; };
+export const listSearchFeedback = () => readJson<SearchFeedback[]>("search-feedback.json", []);
+let feedbackLock: Promise<unknown> = Promise.resolve();
+export function changeFeedback(id: string, entry?: SearchFeedback) {
+  const task = feedbackLock.then(async () => {
+    const rest = (await listSearchFeedback()).filter(e => e.id !== id);
+    const all = entry ? [entry, ...rest] : rest;
+    await writeJson("search-feedback.json", all);
+    return all;
+  });
+  feedbackLock = task.catch(() => {});
+  return task;
 }
 
 export async function listRuns() {

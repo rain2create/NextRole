@@ -12,7 +12,7 @@ const matchSchema = z.object({
 
 export function resumeDigest(r: ResumeData) {
   return [
-    `${r.name} — ${r.headline}`,
+    r.headline,
     r.summary,
     `Skills: ${r.skills.flatMap((g) => g.items).join(", ")}`,
     ...r.experience.map((e) => `${e.title} @ ${e.company} (${e.start}–${e.end}): ${e.bullets.join(" ")}`),
@@ -49,7 +49,6 @@ export async function quickFit(jobs: Job[], profile: Profile) {
   const out = await structured({
     schema: quickSchema,
     name: "quick_fit",
-    effort: "none",
     instructions: `Estimate fit (0-100) of each job for the candidate from title, company, location and any description snippet. Reason: max 14 words. ${GROUNDING_RULES}`,
     input: `CANDIDATE\n${resumeDigest(profile.resume).slice(0, 4000)}\n\nJOBS\n${jobs
       .map((j) => `${j.id} | ${j.title} | ${j.company} | ${j.location} | ${(j.description || "").slice(0, 300).replace(/\s+/g, " ")}`)

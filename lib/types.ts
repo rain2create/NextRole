@@ -73,7 +73,7 @@ export type Profile = {
   updatedAt: string;
 };
 
-export type JobSource = "linkedin" | "greenhouse" | "lever" | "ashby" | "web";
+export type JobSource = "linkedin" | "greenhouse" | "lever" | "ashby" | "web" | "boss" | "zhaopin";
 
 export type Job = {
   id: string;
@@ -90,6 +90,14 @@ export type Job = {
   applyNote?: string;
   quickFit?: number;
   quickFitReason?: string;
+  imported?: boolean;
+  pay?: import("./jobs/criteria").Pay;
+  searchView?: {
+    direction: string;
+    checks: import("./jobs/criteria").Check[];
+    match?: Match;
+    feedback: string[];
+  };
   fetchedAt: string;
 };
 

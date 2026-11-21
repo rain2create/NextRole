@@ -1,5 +1,5 @@
 "use client";
-import { CheckCircle2, Linkedin, LoaderCircle, Rocket, Search } from "lucide-react";
+import { CheckCircle2, Linkedin, LoaderCircle, PlugZap, Rocket, Search } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { AutopilotState } from "@/lib/agent/autopilot";
@@ -14,7 +14,7 @@ import { RunPanel } from "./_components/RunPanel";
 import { SearchPanel } from "./_components/SearchPanel";
 import { Card, Eyebrow, Logo, Notice } from "./_components/ui";
 
-type ProfileResponse = { profile: Profile; versions: ResumeVersion[]; openai: { configured: boolean; model: string; agentModel: string } };
+type ProfileResponse = { profile: Profile; versions: ResumeVersion[]; ai: { keyKind: "missing" | "token-plan" | "application"; configured: boolean; issue: string | null; model: string; agentModel: string; webSearch: boolean } };
 const ACTIVE = ["running", "needs_input", "blocked", "awaiting_approval"];
 const DETAIL_LABELS: [keyof Profile["preferences"], string][] = [
   ["workAuthorization", "work authorization"],
@@ -33,6 +33,7 @@ export default function Workspace() {
   const [shownRun, setShownRun] = useState<ApplicationRun | null>(null);
   const [browser, setBrowser] = useState({ open: false, linkedin: false });
   const [connecting, setConnecting] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [notice, setNotice] = useState("");
   const [mode, setMode] = useState<"search" | "autopilot">("search");
   const [autopilot, setAutopilot] = useState<AutopilotState | null>(null);
@@ -118,6 +119,8 @@ export default function Workspace() {
   }, []);
 
   const profile = data?.profile ?? null;
+  const planKey = data?.ai.keyKind === "token-plan";
+  const keyPresent = planKey || data?.ai.configured;
   const hasResume = Boolean(profile?.resume);
   const agentBusy = runs.some((r) => ACTIVE.includes(r.status)) || autopilotActive;
   const missingDetails = [
@@ -140,10 +143,18 @@ export default function Workspace() {
         </nav>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Link href="/app/tracking" className="rounded-full border border-line-strong bg-white px-3 py-1.5 font-semibold text-accent">申请管理</Link>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium ${data?.openai.configured ? "bg-soft text-accent-dark" : "bg-danger-soft text-danger"}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${data?.openai.configured ? "bg-accent" : "bg-danger"}`} />
-            {data ? (data.openai.configured ? `OpenAI · ${data.openai.agentModel}` : "OpenAI key missing") : "Connecting…"}
+          <span title={planKey ? "已读取本地配置，未验证远程连接" : undefined} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium ${keyPresent ? "bg-soft text-accent-dark" : "bg-danger-soft text-danger"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${keyPresent ? "bg-accent" : "bg-danger"}`} />
+            {planKey ? "已识别 Token Plan 密钥" : data ? (data.ai.configured ? `千问 · ${data.ai.model}（已配置）` : "千问密钥未就绪") : "Connecting…"}
           </span>
+          <button type="button" title="测试千问模型连接（一次模型调用）" aria-label="测试千问连接" disabled={!data?.ai.configured || checking}
+            className="p-2 text-accent disabled:opacity-40" onClick={async () => {
+              setChecking(true);
+              try {
+                const result = await api<{model:string}>("/api/model/check",{method:"POST"});
+                setNotice(`连接成功：${result.model} 已返回有效的结构化结果。`);
+              } catch (err) { setNotice(errorText(err)); } finally { setChecking(false); }
+            }}>{checking ? <LoaderCircle className="animate-spin" size={16}/> : <PlugZap size={16}/>}</button>
           {browser.linkedin ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-soft px-3 py-1.5 font-medium text-accent-dark">
               <CheckCircle2 size={13} /> LinkedIn connected
@@ -156,8 +167,8 @@ export default function Workspace() {
         </div>
       </header>
 
-      {data && !data.openai.configured && (
-        <div className="mt-5"><Notice tone="error">Set OPENAI_API_KEY in .env.local and restart the dev server — resume parsing, matching, tailoring and the browser agent all use it.</Notice></div>
+      {!planKey && data?.ai.issue && (
+        <div className="mt-5"><Notice tone="error">{data.ai.issue}</Notice></div>
       )}
       {notice && <div className="mt-5"><Notice>{notice}</Notice></div>}
 
@@ -187,6 +198,9 @@ export default function Workspace() {
         />
       ) : (
       <SearchPanel
+        profileLoaded={data!==null}
+        hasResume={hasResume}
+        aiReady={Boolean(data?.ai.configured && data.ai.webSearch)}
         defaultLocation={profile?.resume?.contact.location ?? ""}
         onResults={(found, errors, q) => {
           setJobs(found);
@@ -229,11 +243,14 @@ export default function Workspace() {
           </div>
           {searchErrors.length > 0 && <div className="mb-3"><Notice tone="warn">{searchErrors.join(" · ")}</Notice></div>}
           {jobs.length ? (
-            <JobList jobs={jobs} selectedId={selected?.id} onSelect={setSelected} />
+            [...new Set(jobs.map(j=>j.searchView?.direction ?? ""))].map(direction => <div key={direction}>
+              {direction && <h3 className="my-2 font-medium">{direction}</h3>}
+              <JobList jobs={jobs.filter(j=>(j.searchView?.direction ?? "")===direction)} selectedId={selected?.id} onSelect={setSelected} />
+            </div>)
           ) : (
             <Card className="text-center">
               <p className="text-sm text-muted">
-                {searched ? "No open roles matched. Try a broader title or another location." : "Results from LinkedIn and company career sites will appear here, ranked against your resume."}
+                {searched ? (searchErrors.length ? "没有可展示的结果；部分来源未完成，请查看提示。" : "已查询的来源没有符合条件的岗位。") : "尚未搜索岗位。"}
               </p>
             </Card>
           )}
@@ -241,7 +258,7 @@ export default function Workspace() {
         <div>
           {selected ? (
             <JobPanel
-              key={selected.id}
+              key={`${selected.id}:${selected.searchView?.direction ?? ""}:${selected.searchView?.match?.match_score ?? ""}`}
               job={selected}
               hasResume={hasResume}
               versions={data?.versions ?? []}

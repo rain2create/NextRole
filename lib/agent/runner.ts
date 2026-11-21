@@ -1,13 +1,13 @@
 import { randomUUID } from "crypto";
 import type { Page } from "playwright";
-import { openai, UserFacingError } from "../ai";
+import { friendlyError, UserFacingError } from "../ai";
 import { config } from "../config";
 import { resumeToText } from "../resume/text";
 import { getProfile, resumeFilePath, saveProfile, saveRun } from "../store";
 import type { ApplicationRun, Job, PendingRequest, Profile, ResumeVersion, RunEvent, RunStatus } from "../types";
 import { ActionError, clickElement, DECLINE, demographicBlock, elementLabel, fillField, invalidFields, isSubmitLike, uploadFile } from "./actions";
 import { agentContext } from "./browser";
-import { AGENT_INSTRUCTIONS, AGENT_TOOLS } from "./prompts";
+import { planStep } from "./model";
 import { isPublicHttpTarget } from "../url-safety";
 import { formatSnapshot, takeSnapshot, type Snapshot } from "./snapshot";
 
@@ -375,33 +375,15 @@ async function execute(ctl: Ctl, applyUrl: string) {
       ctl.run.currentUrl = snap.url;
       ctl.run.steps = step + 1;
 
-      const content: ({ type: "input_text"; text: string } | { type: "input_image"; image_url: string; detail: "low" })[] = [
-        { type: "input_text", text: stepInput(ctl, snap) },
-      ];
-      if (ctl.screenshot)
-        content.push({ type: "input_image", image_url: `data:image/jpeg;base64,${ctl.screenshot.toString("base64")}`, detail: "low" });
-
-      const res = await openai().responses.create(
-        {
-          model: config.agentModel(),
-          reasoning: { effort: "low" },
-          store: false,
-          instructions: AGENT_INSTRUCTIONS,
-          tools: AGENT_TOOLS,
-          parallel_tool_calls: true,
-          input: [{ role: "user", content }],
-        },
-        { signal: ctl.abort.signal },
-      );
-      ctl.run.usage.inputTokens += res.usage?.input_tokens ?? 0;
-      ctl.run.usage.outputTokens += res.usage?.output_tokens ?? 0;
+      const { calls, inputTokens, outputTokens } = await planStep(stepInput(ctl, snap), ctl.screenshot ?? undefined, ctl.abort.signal);
+      ctl.run.usage.inputTokens += inputTokens;
+      ctl.run.usage.outputTokens += outputTokens;
       ctl.run.usage.modelCalls += 1;
       if (ctl.run.usage.inputTokens > config.maxRunTokens())
         throw new UserFacingError(
           `Stopped after ${ctl.run.usage.inputTokens.toLocaleString()} tokens to protect your credits. The tab is still open: finish manually, or fix the blocking field and run again.`,
         );
 
-      const calls = res.output.filter((o) => o.type === "function_call");
       if (!calls.length) {
         if (++silent >= 3) throw new UserFacingError("The agent stopped making progress on this page.");
         ctl.history.push("(no tool call returned — you must act through tools)");
@@ -485,9 +467,9 @@ export async function startApplication(job: Job, version: ResumeVersion, autoSub
         setStatus(ctl, "cancelled");
         return;
       }
-      const message = err instanceof UserFacingError ? err.message : "The browser agent hit an unexpected error.";
+      const message = friendlyError(err, "The browser agent hit an unexpected error.");
       ctl.run.outcome = message;
-      log(ctl, "error", "Run failed", err instanceof UserFacingError ? undefined : short(String((err as Error)?.message), 300));
+      log(ctl, "error", "Run failed", message);
       setStatus(ctl, "failed");
     })
     .finally(() => void capture(ctl));

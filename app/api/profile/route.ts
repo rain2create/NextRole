@@ -1,5 +1,6 @@
 import { route } from "@/lib/api";
 import { config } from "@/lib/config";
+import { keyIssue, keyKind } from "@/lib/ai";
 import { getProfile, listResumeVersions, saveProfile } from "@/lib/store";
 import type { Preferences, ResumeData } from "@/lib/types";
 
@@ -8,7 +9,7 @@ export const GET = route(async () => {
   return Response.json({
     profile,
     versions,
-    openai: { configured: Boolean(config.openaiKey()), model: config.model(), agentModel: config.agentModel() },
+    ai: { provider: "千问", keyKind: keyKind(), configured: !keyIssue(), issue: keyIssue(), model: config.model(), agentModel: config.agentModel(), webSearch: config.webSearchEnabled() },
   });
 });
 

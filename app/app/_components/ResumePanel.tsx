@@ -104,8 +104,8 @@ export function ResumePanel({
           </h2>
           <p className="mt-1 text-sm text-muted">
             {resume
-              ? resume.headline || "Parsed with OpenAI. The agent only uses facts from here and your application details."
-              : "Upload a PDF or DOCX. It's parsed with OpenAI and used to match, tailor and fill applications."}
+              ? resume.headline || "The agent uses the resume facts and application details you provide."
+              : "上传 PDF 或 DOCX 后，简历文本会发送给千问，用于解析和匹配。"}
           </p>
         </div>
         {resume && (

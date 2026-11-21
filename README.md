@@ -4,6 +4,8 @@
 
 # NextRole
 
+新版 `/app` 支持指定岗位或简历推荐方向、条件筛选、匹配和可撤销反馈。不配置模型密钥也可搜索 LinkedIn 公开职位；企业招聘页发现需要开启千问联网搜索。参见[岗位搜索使用说明](docs/JOB_DISCOVERY.md)。
+
 NextRole is our job application workspace, built on [Roleflow](https://github.com/Deveshu04/roleflow). It adds a Chinese application tracker with interview and offer statuses, manual records, history, filtering, and CSV export.
 
 Open `/app/tracking` to manage applications. See [application tracking documentation](docs/APPLICATION_TRACKING.md) for integration and testing. The original Roleflow documentation, screenshots, and demo below describe the upstream foundation; its attribution and license are retained.
@@ -14,7 +16,7 @@ Open `/app/tracking` to manage applications. See [application tracking documenta
 [![CodeQL](https://github.com/Deveshu04/roleflow/actions/workflows/codeql.yml/badge.svg)](https://github.com/Deveshu04/roleflow/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3f6357.svg)](LICENSE)
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
-![OpenAI](https://img.shields.io/badge/OpenAI-gpt--5.5-412991?logo=openai)
+![Qwen](https://img.shields.io/badge/Qwen-model%20API-14674f)
 ![Playwright](https://img.shields.io/badge/Playwright-browser%20agent-2EAD33?logo=playwright)
 
 [Demo](#demo) · [Features](#features) · [Quick start](#quick-start) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
@@ -41,7 +43,7 @@ Applying for jobs is the same loop over and over: find a role, tweak your resume
 
 | | |
 |---|---|
-| 🔎 **Live job search** | LinkedIn's public listings plus company career sites on **Greenhouse, Lever and Ashby** (found with OpenAI web search and verified through each ATS's public API). Results are ranked against your resume. You can also paste any job link. |
+| **Live job search** | Optional Qwen web search discovers company career sites on **Greenhouse, Lever and Ashby**, verified through each ATS's public API. Pasted postings work without web search. |
 | 📄 **Resume understanding** | Upload a PDF or DOCX. The text and hidden hyperlinks are parsed into a structured profile. |
 | 🎯 **Match analysis** | A score with concrete evidence from your resume, the gaps, and the things worth confirming before you apply. |
 | ✍️ **Per-job tailoring** | A rewritten resume PDF and cover letter for each job. Every edit is listed with a reason. Employers, titles, dates and education are restored in code, and skills you never listed are dropped. |
@@ -72,7 +74,7 @@ Applying for jobs is the same loop over and over: find a role, tweak your resume
 
 ```mermaid
 flowchart LR
-  R["Resume PDF/DOCX"] --> P["Parse<br/>gpt-5.5 structured output"]
+  R["Resume PDF/DOCX"] --> P["Parse<br/>Qwen structured output"]
   Q["Role + location"] --> S["Search<br/>LinkedIn · Greenhouse · Lever · Ashby"]
   P --> M["Match + tailor<br/>resume PDF + cover letter"]
   S --> M
@@ -88,13 +90,13 @@ The full design, with data flows, state machine, guardrails, data model and API,
 
 ## Quick start
 
-Requirements: **Node.js 20.9+**, **Google Chrome** (or Edge, via `BROWSER_CHANNEL=msedge`), and an **OpenAI API key**.
+Requirements: **Node.js 20.9+**, **Google Chrome** (or Edge, via `BROWSER_CHANNEL=msedge`), and a **Qwen application API key** for AI features.
 
 ```bash
 git clone https://github.com/Deveshu04/roleflow.git
 cd roleflow
 npm install
-cp .env.example .env.local      # then set OPENAI_API_KEY
+cp .env.example .env.local      # then set QWEN_API_KEY
 npm run dev
 ```
 
@@ -111,9 +113,10 @@ All settings are environment variables in `.env.local`:
 
 | Variable | Default | Description |
 |---|---|---|
-| `OPENAI_API_KEY` | — | **Required.** Used for parsing, matching, tailoring, web search and the agent. |
-| `OPENAI_MODEL` | `gpt-5.5` | Model for parsing, matching, tailoring and search. |
-| `OPENAI_AGENT_MODEL` | `OPENAI_MODEL` | Model that drives the browser agent. |
+| `QWEN_API_KEY` | — | Qwen usage-based application key for AI features. |
+| `QWEN_MODEL` | `qwen3.7-plus` | Model for parsing, matching, tailoring and optional web search. |
+| `QWEN_AGENT_MODEL` | `QWEN_MODEL` | Browser model with image and function-call support. |
+| `QWEN_WEB_SEARCH` | `false` | Enable remote job discovery independently of model matching. |
 | `BROWSER_CHANNEL` | `chrome` | `chrome`, `msedge` or `chromium`. |
 | `HEADLESS` | `false` | Hide the agent's browser. You then can't sign in or solve CAPTCHAs. |
 | `AGENT_MAX_STEPS` | `40` | Model steps per application. |
@@ -124,7 +127,7 @@ All settings are environment variables in `.env.local`:
 
 ## Privacy and responsible use
 
-- **Local-first.** Everything stays in `data/` on your machine, which is git-ignored. The server binds to `127.0.0.1` only, and the API rejects cross-site and non-localhost requests. Resume text and job pages are sent to OpenAI for processing.
+- **Local storage.** Records are stored in the git-ignored `data/` directory. The server binds to `127.0.0.1`. AI operations send relevant resume text, job descriptions or agent page snapshots to Qwen.
 - **Your credentials stay yours.** Roleflow never asks for passwords, never creates accounts and never bypasses CAPTCHAs or bot checks.
 - **You are the applicant.** Review every form before approving. Auto-submit is off by default.
 - **LinkedIn:** automating actions on your LinkedIn account may break LinkedIn's User Agreement and could lead to restrictions. Keep the volume low and apply only to roles you'd apply to by hand.

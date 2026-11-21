@@ -1,10 +1,11 @@
 import path from "path";
 
 export const config = {
-  openaiKey: () => process.env.OPENAI_API_KEY?.trim() || "",
-  model: () => process.env.OPENAI_MODEL?.trim() || "gpt-5.5",
-  agentModel: () =>
-    process.env.OPENAI_AGENT_MODEL?.trim() || process.env.OPENAI_MODEL?.trim() || "gpt-5.5",
+  qwenKey: () => process.env.QWEN_API_KEY?.trim() || "",
+  qwenBaseURL: "https://maas.qianwenaiapi.com/compatible-mode/v1",
+  model: () => process.env.QWEN_MODEL?.trim() || "qwen3.7-plus",
+  agentModel: () => process.env.QWEN_AGENT_MODEL?.trim() || config.model(),
+  webSearchEnabled: () => process.env.QWEN_WEB_SEARCH === "true",
   // chrome | msedge | chromium
   browserChannel: () => process.env.BROWSER_CHANNEL?.trim() || "chrome",
   headless: () => process.env.HEADLESS === "true",

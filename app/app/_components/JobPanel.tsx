@@ -29,7 +29,7 @@ export function JobPanel({
   // Keyed by job id in the parent, so state resets per job.
   const [detail, setDetail] = useState<Job>(job);
   const [loading, setLoading] = useState(true);
-  const [match, setMatch] = useState<Match | null>(null);
+  const [match, setMatch] = useState<Match | null>(job.searchView?.match ?? null);
   const [matching, setMatching] = useState(false);
   const [tailored, setTailored] = useState<Tailored | null>(null);
   const [tailoring, setTailoring] = useState(false);

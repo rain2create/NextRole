@@ -1,4 +1,4 @@
-import type { FunctionTool } from "openai/resources/responses/responses";
+import type { ChatCompletionFunctionTool } from "openai/resources/chat/completions";
 
 export const AGENT_INSTRUCTIONS = `You are NextRole's browser agent. You complete a real job application in a real browser on behalf of the candidate described in each message.
 
@@ -32,15 +32,15 @@ Submitting
 - After approval and the submit click, check the page: if it confirms the application (thank-you message, "application submitted", confirmation page), call finish(outcome="submitted"). If validation errors appear, fix them and submit again.
 - Call finish with "already_applied" or "closed" if the page says so, or "failed" if the application cannot be completed (explain why).`;
 
-const fn = (name: string, description: string, properties: Record<string, unknown>): FunctionTool => ({
+const fn = (name: string, description: string, properties: Record<string, unknown>): ChatCompletionFunctionTool => ({
   type: "function",
-  name,
-  description,
-  strict: true,
-  parameters: { type: "object", properties, required: Object.keys(properties), additionalProperties: false },
+  function: {
+    name, description, strict: true,
+    parameters: { type: "object", properties, required: Object.keys(properties), additionalProperties: false },
+  },
 });
 
-export const AGENT_TOOLS: FunctionTool[] = [
+export const AGENT_TOOLS: ChatCompletionFunctionTool[] = [
   fn(
     "fill_fields",
     "Fill or set many fields at once. Text inputs/textareas: the text. select/combobox: the option text to choose. checkbox: 'true' or 'false'. radio: any value selects that radio. Batch all fields of the current page in one call.",

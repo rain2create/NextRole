@@ -1,6 +1,6 @@
 # Architecture
 
-Roleflow is a single Next.js 16 application that runs locally. The React workspace talks to thin route handlers. Those delegate to four server modules in `lib/`, which call OpenAI, public job APIs and a Playwright-controlled Chrome. All state is stored as JSON files and documents on your machine.
+NextRole runs locally as a Next.js application. This document describes the upstream Roleflow architecture. In this fork, the model provider is Qwen, not OpenAI. Current environment settings and protocol details are in [JOB_DISCOVERY.md](JOB_DISCOVERY.md). The upstream diagrams below are historical.
 
 - [High-level design](#high-level-design)
 - [Components](#components)

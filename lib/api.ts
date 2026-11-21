@@ -6,8 +6,9 @@ export function route<A extends unknown[]>(handler: (...args: A) => Promise<Resp
     try {
       return await handler(...args);
     } catch (err) {
-      console.error("[roleflow]", err);
-      return Response.json({ error: friendlyError(err, fallback) }, { status: 500 });
+      const message = friendlyError(err, fallback);
+      console.error("[roleflow]", message);
+      return Response.json({ error: message }, { status: 500 });
     }
   };
 }

@@ -89,6 +89,8 @@ export function Logo() {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
+  boss: "BOSS 直聘",
+  zhaopin: "智联招聘",
   linkedin: "LinkedIn",
   greenhouse: "Greenhouse",
   lever: "Lever",

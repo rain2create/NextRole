@@ -1,15 +1,24 @@
 import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
+import { zodResponseFormat } from "openai/helpers/zod";
 import type { z } from "zod";
 import { config } from "./config";
 
-let client: OpenAI | null = null;
+export function keyKind() {
+  const key = config.qwenKey();
+  return !key ? "missing" : key.startsWith("sk-sp-") ? "token-plan" : "application";
+}
 
-export function openai() {
-  const apiKey = config.openaiKey();
-  if (!apiKey) throw new UserFacingError("OPENAI_API_KEY is not set. Add it to .env.local and restart the app.");
-  client ??= new OpenAI({ apiKey, maxRetries: 2, timeout: 120_000 });
-  return client;
+export function keyIssue() {
+  const kind = keyKind();
+  if (kind === "missing") return "请在 .env.local 配置千问应用密钥 QWEN_API_KEY。";
+  if (kind === "token-plan") return "当前是 Token Plan 套餐密钥；NextRole 后端需要千问按量付费应用密钥。";
+  return null;
+}
+
+export function qwenClient() {
+  const issue = keyIssue();
+  if (issue) throw new UserFacingError(issue);
+  return new OpenAI({ apiKey: config.qwenKey(), baseURL: config.qwenBaseURL, maxRetries: 1, timeout: 120_000 });
 }
 
 /** Its message is safe to show in the UI. */
@@ -18,9 +27,10 @@ export class UserFacingError extends Error {}
 export function friendlyError(err: unknown, fallback = "Something went wrong. Please retry.") {
   if (err instanceof UserFacingError) return err.message;
   if (err instanceof OpenAI.APIError) {
-    if (err.status === 401) return "OpenAI rejected the API key. Check OPENAI_API_KEY in .env.local.";
-    if (err.status === 429) return "OpenAI rate limit or quota reached. Wait a moment and retry.";
-    return `OpenAI request failed (${err.status ?? "network"}). Please retry.`;
+    if (err.status === 401) return "千问未接受应用密钥，请检查 QWEN_API_KEY。";
+    if (err.status === 403 || err.status === 404) return "千问拒绝访问或模型不存在，请核对模型名和模型权限。";
+    if (err.status === 429) return "千问限流或额度不足，请检查额度后重试。";
+    return `千问请求失败（${err.status ?? "网络错误"}）。`;
   }
   return fallback;
 }
@@ -35,24 +45,24 @@ export async function structured<S extends z.ZodTypeAny>(opts: {
   instructions: string;
   input: string;
   model?: string;
-  effort?: "none" | "low" | "medium" | "high";
 }): Promise<z.infer<S>> {
-  const res = await openai().responses.parse({
+  const body = {
     model: opts.model || config.model(),
-    reasoning: { effort: opts.effort || "low" },
-    store: false,
-    instructions: opts.instructions,
-    input: opts.input,
-    text: { format: zodTextFormat(opts.schema, opts.name) },
-  });
-  if (!res.output_parsed) throw new UserFacingError("The model returned an unexpected response. Please retry.");
-  return res.output_parsed as z.infer<S>;
+    messages: [{ role: "system" as const, content: opts.instructions }, { role: "user" as const, content: opts.input }],
+    response_format: zodResponseFormat(opts.schema, opts.name),
+  };
+  const res = await qwenClient().chat.completions.create(body);
+  const answer = res.choices[0];
+  if (answer?.finish_reason === "stop" && answer.message.content) {
+    try { return opts.schema.parse(JSON.parse(answer.message.content)); } catch { /* no model output in error logs */ }
+  }
+  throw new UserFacingError("千问未返回完整且符合约定的 JSON，请检查模型对结构化输出的支持。");
 }
 
 export async function webSearch(instructions: string, input: string) {
-  const res = await openai().responses.create({
+  if (!config.webSearchEnabled()) throw new UserFacingError("千问联网搜索未启用，可先搜索 LinkedIn 公开职位。");
+  const res = await qwenClient().responses.create({
     model: config.model(),
-    reasoning: { effort: "low" },
     store: false,
     tools: [{ type: "web_search" }],
     instructions,
