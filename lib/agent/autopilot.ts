@@ -4,7 +4,7 @@ import { jobWithDetails } from "../jobs/details";
 import { searchJobs } from "../jobs/search";
 import { tailorForJob } from "../resume/service";
 import { getProfile, getResumeVersion, listRuns } from "../store";
-import type { Job, JobSource } from "../types";
+import type { Job, JobSource, ResumeDirection } from "../types";
 import { agentContext, linkedInSignedIn } from "./browser";
 import { hasActiveRun, replyToRun, startApplication, waitForRunEnd } from "./runner";
 
@@ -16,6 +16,7 @@ export type AutopilotInput = {
   sources: { linkedin: boolean; web: boolean };
   easyApplyOnly: boolean;
   tailor: boolean;
+  direction?: ResumeDirection;
   autoSubmit: boolean;
 };
 
@@ -95,7 +96,7 @@ async function applyTo(item: AutopilotItem, input: AutopilotInput, originalId: s
   if (input.tailor && job.description) {
     update(item, { state: "tailoring" });
     note(`Tailoring your resume for ${job.company}`);
-    versionId = (await tailorForJob(job)).version.id;
+    versionId = (await tailorForJob(job, input.direction)).version.id;
   }
   const version = await getResumeVersion(versionId);
   if (!version) throw new UserFacingError("Resume version missing");

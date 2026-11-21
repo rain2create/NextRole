@@ -2,6 +2,8 @@
 import { CheckCircle2, CircleAlert, MapPin, Play, Rocket, Square } from "lucide-react";
 import { useState } from "react";
 import type { AutopilotState } from "@/lib/agent/autopilot";
+import type { ResumeDirection } from "@/lib/types";
+import { RESUME_DIRECTIONS } from "@/lib/resume/directions";
 import { api, errorText } from "./api";
 import { Button, Field, inputCls, Notice, SourceBadge } from "./ui";
 
@@ -34,12 +36,14 @@ export function AutopilotPanel({
   defaultLocation,
   linkedInSignedIn,
   readiness,
+  direction,
   onChange,
 }: {
   state: AutopilotState | null;
   defaultLocation: string;
   linkedInSignedIn: boolean;
   readiness: { resume: boolean; missingDetails: string[] };
+  direction: ResumeDirection | "";
   onChange: (s: AutopilotState | null) => void;
 }) {
   const [query, setQuery] = useState(state?.input.query ?? "");
@@ -60,7 +64,7 @@ export function AutopilotPanel({
     setError("");
     try {
       const { autopilot } = await api<{ autopilot: AutopilotState }>("/api/autopilot", {
-        json: { action: "start", query, location: loc, limit, minFit, sources, easyApplyOnly, tailor, autoSubmit },
+        json: { action: "start", query, location: loc, limit, minFit, sources, easyApplyOnly, tailor, autoSubmit, direction: direction || undefined },
       });
       onChange(autopilot);
     } catch (err) {
@@ -145,6 +149,7 @@ export function AutopilotPanel({
             <input type="checkbox" className="mt-1" checked={tailor} disabled={running} onChange={(e) => setTailor(e.target.checked)} />
             <span>Tailor my resume and cover letter for each job <span className="text-muted">(about 30s per job)</span></span>
           </label>
+          {tailor && <p className="text-xs text-muted">简历修改方向：{RESUME_DIRECTIONS.find((item) => item.value === direction)?.label ?? "未选择，请到下方简历区选择方向后再启动"}</p>}
           <label className="flex items-start gap-2">
             <input type="checkbox" className="mt-1" checked={autoSubmit} disabled={running} onChange={(e) => setAutoSubmit(e.target.checked)} />
             <span>
@@ -177,7 +182,7 @@ export function AutopilotPanel({
               <Square size={14} /> Stop autopilot
             </Button>
           ) : (
-            <Button onClick={start} busy={busy} disabled={!readiness.resume || !query.trim()} className="px-5 py-3">
+            <Button onClick={start} busy={busy} disabled={!readiness.resume || !query.trim() || (tailor && !direction)} className="px-5 py-3">
               <Rocket size={16} /> Start autopilot
             </Button>
           )}

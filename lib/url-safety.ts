@@ -2,7 +2,7 @@ import { lookup } from "dns/promises";
 import { isIP } from "net";
 
 const PRIVATE_V4 = [/^10\./, /^127\./, /^0\./, /^169\.254\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./];
-const LOCAL_NAME = /(^|\.)(localhost|local|internal|home\.arpa)$/;
+const LOCAL_NAME = /(^|\.)(localhost|local|internal|invalid|home\.arpa)$/;
 
 export function isPrivateAddress(ip: string): boolean {
   const addr = ip.toLowerCase();

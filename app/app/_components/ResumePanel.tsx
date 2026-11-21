@@ -3,6 +3,7 @@ import { ChevronDown, Download, FileText, Github, Linkedin, Mail, MapPin, Phone,
 import { useRef, useState, type DragEvent } from "react";
 import type { Preferences, Profile, ResumeData, ResumeVersion } from "@/lib/types";
 import { api, errorText } from "./api";
+import { ResumeGenerationPanel, type ResumeGenerationProps } from "./ResumeGenerationPanel";
 import { Button, Card, Eyebrow, Field, inputCls, Notice, Spinner } from "./ui";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -32,10 +33,12 @@ export function ResumePanel({
   profile,
   versions,
   onChange,
+  generation,
 }: {
   profile: Profile | null;
   versions: ResumeVersion[];
   onChange: () => Promise<void>;
+  generation: Omit<ResumeGenerationProps, "hasResume" | "onChange">;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -46,6 +49,8 @@ export function ResumePanel({
   const [contact, setContact] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [inputMode, setInputMode] = useState<"file" | "text">("file");
+  const [resumeText, setResumeText] = useState("");
   const resume = profile?.resume;
   const draft = prefs ?? profile?.preferences ?? null;
   const contactDraft = contact ?? resume?.contact ?? null;
@@ -59,11 +64,30 @@ export function ResumePanel({
       body.append("resume", file);
       await api("/api/resume", { method: "POST", body });
       await onChange();
+      setPrefs(null);
+      setContact(null);
     } catch (err) {
       setError(errorText(err));
     } finally {
       setUploading(false);
       if (input.current) input.current.value = "";
+    }
+  };
+
+  const readText = async () => {
+    if (!resumeText.trim() || uploading) return;
+    setUploading(true);
+    setError("");
+    try {
+      await api("/api/resume", { json: { text: resumeText } });
+      await onChange();
+      setPrefs(null);
+      setContact(null);
+      setResumeText("");
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -105,19 +129,33 @@ export function ResumePanel({
           <p className="mt-1 text-sm text-muted">
             {resume
               ? resume.headline || "Parsed with OpenAI. The agent only uses facts from here and your application details."
-              : "Upload a PDF or DOCX. It's parsed with OpenAI and used to match, tailor and fill applications."}
+              : "上传 PDF / DOCX，或直接粘贴中文、英文简历，读取后可按方向或岗位 JD 定制。"}
           </p>
         </div>
         {resume && (
           <Button variant="secondary" onClick={() => input.current?.click()} busy={uploading}>
-            <Upload size={15} /> Replace
+            <Upload size={15} /> 更换简历文件
           </Button>
         )}
       </div>
 
       <input ref={input} type="file" accept=".pdf,.docx" className="hidden" onChange={(e) => void upload(e.target.files?.[0])} />
 
-      {!resume && (
+      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="简历输入方式">
+        <Button variant={inputMode === "file" ? "secondary" : "ghost"} disabled={uploading} aria-pressed={inputMode === "file"} onClick={() => setInputMode("file")}>上传简历文件</Button>
+        <Button variant={inputMode === "text" ? "secondary" : "ghost"} disabled={uploading} aria-pressed={inputMode === "text"} onClick={() => setInputMode("text")}>粘贴简历文本</Button>
+      </div>
+
+      {inputMode === "text" && (
+        <div className="mt-3 grid gap-3 rounded-2xl border border-line bg-paper p-4">
+          <Field label="中文或英文简历文本" hint={resume ? "读取后将替换当前基础简历；已生成的历史版本仍会保留。" : "可直接输入姓名、联系方式、教育经历、工作经历、项目和技能，保持原有段落即可。"}>
+            <textarea aria-label="中文或英文简历文本" rows={8} maxLength={30000} className={inputCls} value={resumeText} disabled={uploading} onChange={(e) => setResumeText(e.target.value)} placeholder="张三\n求职意向：后端开发工程师\n教育经历：……\n工作经历：……\n项目经历：……\n专业技能：……" />
+          </Field>
+          <div><Button onClick={readText} busy={uploading} disabled={!resumeText.trim()}>读取简历信息</Button></div>
+        </div>
+      )}
+
+      {!resume && inputMode === "file" && (
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -132,8 +170,8 @@ export function ResumePanel({
           ) : (
             <>
               <FileText className="text-accent" />
-              <p className="mt-2 text-sm font-medium">Drop your resume here</p>
-              <p className="text-xs text-muted">PDF or DOCX, up to 8 MB</p>
+              <p className="mt-2 text-sm font-medium">拖入中文或英文简历</p>
+              <p className="text-xs text-muted">PDF 或 DOCX，最大 8 MB；扫描件请先转为可复制文字的文档</p>
               <Button className="mt-3" onClick={() => input.current?.click()}>
                 <Upload size={15} /> Choose file
               </Button>
@@ -143,6 +181,8 @@ export function ResumePanel({
       )}
 
       {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}
+
+      <ResumeGenerationPanel key={profile?.originalResumeId ?? "empty"} {...generation} versions={versions} sourceResumeId={profile?.originalResumeId ?? null} sourceResume={resume ?? null} sourceResumeText={profile?.resumeText ?? ""} hasResume={Boolean(resume) && !uploading} onChange={onChange} />
 
       {resume && (
         <>
@@ -228,7 +268,7 @@ export function ResumePanel({
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{v.label}</span>
                       <span className="text-xs text-muted">
-                        {v.kind === "tailored" ? "Tailored PDF + cover letter" : "Original upload"} · {new Date(v.createdAt).toLocaleDateString()}
+                        {v.kind === "tailored" ? "岗位专属 PDF + 求职信" : v.kind === "base" ? "方向版 PDF" : "原始简历"} · {new Date(v.createdAt).toLocaleDateString()}
                       </span>
                     </span>
                     <a href={`/api/resume/${v.id}?download`} className="shrink-0 rounded-lg p-2 text-muted hover:bg-paper hover:text-accent" aria-label={`Download ${v.label}`}>

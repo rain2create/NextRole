@@ -29,5 +29,6 @@ AGENT_BUILD_BRIEF.md
 .vscode/
 .idea/
 *.log
+/roleflow-server.pid
 .DS_Store
 Thumbs.db

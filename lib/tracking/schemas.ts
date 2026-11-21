@@ -2,16 +2,25 @@ import { z } from "zod";
 import { statuses } from "./types";
 const date = z.union([z.literal(""), z.string().datetime({ offset: true })]);
 const url = z.string().trim().max(2000).refine(v => !v || /^https?:\/\//i.test(v) && URL.canParse(v), "链接须为 http 或 https 地址");
-export const fields = z.object({
+const fieldSchemas = {
   company: z.string().trim().min(1, "请填写公司").max(200),
   role: z.string().trim().min(1, "请填写岗位").max(200),
-  location: z.string().trim().max(200).default(""), url: url.default(""),
-  status: z.enum(statuses).default("saved"), appliedAt: date.default(""),
-  resumeVersionId: z.string().max(100).default(""),
-  interviewAt: date.default(""), interviewRound: z.string().trim().max(100).default(""),
-  interviewLocation: z.string().trim().max(1000).default(""), notes: z.string().max(10000).default(""),
+  location: z.string().trim().max(200), url,
+  status: z.enum(statuses), appliedAt: date,
+  resumeVersionId: z.string().max(100),
+  interviewAt: date, interviewRound: z.string().trim().max(100),
+  interviewLocation: z.string().trim().max(1000), notes: z.string().max(10000),
+};
+export const fields = z.object({
+  ...fieldSchemas,
+  location: fieldSchemas.location.default(""), url: fieldSchemas.url.default(""),
+  status: fieldSchemas.status.default("saved"), appliedAt: fieldSchemas.appliedAt.default(""),
+  resumeVersionId: fieldSchemas.resumeVersionId.default(""),
+  interviewAt: fieldSchemas.interviewAt.default(""), interviewRound: fieldSchemas.interviewRound.default(""),
+  interviewLocation: fieldSchemas.interviewLocation.default(""), notes: fieldSchemas.notes.default(""),
 }).strict();
-export const patchSchema = fields.partial().extend({
+// Partial updates must not apply creation defaults to omitted fields.
+export const patchSchema = z.object(fieldSchemas).partial().extend({
   revision: z.number().int().positive(), archived: z.boolean().optional(),
 }).strict();
 export type CreateInput = z.infer<typeof fields>;
