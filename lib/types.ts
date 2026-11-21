@@ -124,6 +124,8 @@ export type PendingRequest =
   | { type: "approval"; summary: string; unresolved: string[] };
 
 export type ApplicationRun = {
+  channel?: "web" | "email";
+  email?: { to: string; subject: string; body: string; delivery: "draft" | "sending" | "accepted" | "unknown"; messageId?: string };
   id: string;
   jobId: string;
   job: Pick<Job, "title" | "company" | "location" | "url" | "source">;

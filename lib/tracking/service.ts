@@ -51,27 +51,31 @@ export function trackingService(file = dataPath("application-records.json")) {
     return store.update(records => {
       let changed = 0;
       for (const run of [...runs].sort((a,b) => a.createdAt.localeCompare(b.createdAt))) {
-        if (run.status !== "submitted") continue;
+        if (run.status !== "submitted" && run.status !== "awaiting_approval") continue;
+        const submitted = run.status === "submitted";
+        const label = submitted ? "Agent 报告提交成功" : "已填写／邮件已备好，待确认投递";
         let record = records.find(r => r.runIds.includes(run.id) || r.jobId === run.jobId);
-        if (record?.history.some(e => e.runId === run.id)) continue;
+        if (record?.history.some(e => e.runId === run.id && e.label === label)) continue;
         const at = now();
         if (!record) {
           record = {
             id: randomUUID(), jobId: run.jobId, company: run.job.company, role: run.job.title,
-            location: run.job.location, url: run.job.url, status: "applied", source: "agent",
-            appliedAt: run.updatedAt, resumeVersionId: run.resumeVersionId, runIds: [],
-            everApplied: true, everOffer: false, interviewAt: "", interviewRound: "", interviewLocation: "", notes: "",
+            location: run.job.location, url: run.job.url, status: submitted ? "applied" : "saved", source: "agent",
+            appliedAt: submitted ? run.updatedAt : "", resumeVersionId: run.resumeVersionId, runIds: [],
+            everApplied: submitted, everOffer: false, interviewAt: "", interviewRound: "", interviewLocation: "", notes: "",
             revision: 0, archivedAt: null, createdAt: at, updatedAt: at, history: [],
           };
           records.push(record);
         }
         const previous = record.status;
-        if (record.status === "saved") record.status = "applied";
-        record.everApplied = true;
-        record.appliedAt ||= run.updatedAt;
+        if (submitted) {
+          if (record.status === "saved") record.status = "applied";
+          record.everApplied = true;
+          record.appliedAt ||= run.updatedAt;
+        }
         record.resumeVersionId ||= run.resumeVersionId;
         record.runIds = [...new Set([...record.runIds, ...runs.filter(r => r.jobId === run.jobId).map(r => r.id)])];
-        record.history.push({ id: randomUUID(), at, source: "agent", label: "Agent 报告提交成功",
+        record.history.push({ id: randomUUID(), at, source: "agent", label,
           fromStatus: previous, toStatus: record.status, runId: run.id });
         record.updatedAt = at; record.revision++; changed++;
       }

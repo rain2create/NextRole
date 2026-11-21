@@ -1,4 +1,5 @@
 "use client";
+import EmailWorkspace from "./_components/email-workspace";
 import { CheckCircle2, Linkedin, LoaderCircle, Rocket, Search } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -139,6 +140,7 @@ export default function Workspace() {
           <button onClick={() => { setMode("autopilot"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-lg px-3 py-1.5 font-medium text-accent hover:bg-soft">Autopilot</button>
         </nav>
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          <a href="#email-applications" className="rounded-full border border-line-strong bg-white px-3 py-1.5 font-semibold text-accent">邮件投递</a>
           <Link href="/app/tracking" className="rounded-full border border-line-strong bg-white px-3 py-1.5 font-semibold text-accent">申请管理</Link>
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium ${data?.openai.configured ? "bg-soft text-accent-dark" : "bg-danger-soft text-danger"}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${data?.openai.configured ? "bg-accent" : "bg-danger"}`} />
@@ -265,6 +267,7 @@ export default function Workspace() {
         </div>
       </section>
 
+      <section id="email-applications" className="mt-8 scroll-mt-5"><EmailWorkspace embedded/></section>
       <div className="mt-6">
         <History
           runs={runs}

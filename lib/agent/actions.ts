@@ -21,6 +21,7 @@ export function optionScore(option: string, wanted: string) {
 }
 
 function element(snap: Snapshot, id: string) {
+  id = id.trim().replace(/^\[([^\]]+)\]$/, "$1");
   const el = snap.elements.find((e) => e.id === id);
   const frame = frameForId(snap, id);
   if (!el || !frame) throw new ActionError(`element ${id} is not on the current page`);
@@ -104,9 +105,12 @@ async function pickFromCombobox(frame: Frame, loc: Locator, value: string, el: S
   }
   if (!options.length && editable) {
     // Free-text combobox: keep the typed value.
-    await loc.pressSequentially(value.slice(0, 60), { delay: 15 });
-    await loc.press("Tab").catch(() => {});
-    return `typed "${value}" into ${describe(el)} (no dropdown options appeared — verify it stuck)`;
+    await loc.fill(value);
+    await loc.press("Tab");
+    await frame.page().waitForTimeout(250);
+    if (!textValueMatches(await readValue(loc), value, el.type))
+      throw new ActionError(`${describe(el)} did not retain the requested combobox value`);
+    return `verified free-text value in ${describe(el)}`;
   }
   if (!best || best.score < 40) {
     await loc.press("Escape").catch(() => {});
@@ -137,6 +141,15 @@ const readValue = (loc: Locator) =>
     .evaluate((n) => (n instanceof HTMLInputElement || n instanceof HTMLTextAreaElement ? n.value : (n as HTMLElement).innerText))
     .catch(() => "");
 
+export function textValueMatches(actual: string, expected: string, type?: string) {
+  const clean = (s: string) => s.normalize("NFC").replace(/\r\n/g, "\n").trim();
+  if (type === "tel") {
+    const digits = (s: string) => s.replace(/[\s().-]/g, "");
+    return digits(actual) === digits(expected);
+  }
+  return clean(actual) === clean(expected);
+}
+
 async function fillText(frame: Frame, loc: Locator, value: string, el: SnapElement) {
   const before = new Set((await visibleOptions(frame)).map((o) => o.text));
   const plainText = el.kind === "input" && (!el.type || el.type === "text" || el.type === "search");
@@ -154,7 +167,9 @@ async function fillText(frame: Frame, loc: Locator, value: string, el: SnapEleme
   }
   await loc.evaluate((n: HTMLElement) => n.blur()).catch(() => {});
   await frame.page().waitForTimeout(250);
-  if ((await readValue(loc)).trim() || !value.trim()) return `filled ${describe(el)}`;
+  const actual = await readValue(loc);
+  if (textValueMatches(actual, value, el.type)) return `verified ${describe(el)}`;
+  if (actual.trim()) throw new ActionError(`${describe(el)} retained a different value than requested; verify the field mapping and format before retrying`);
 
   if (plainText) {
     // Cleared on blur: retype with real key presses, then try the city alone.
@@ -172,13 +187,18 @@ async function fillText(frame: Frame, loc: Locator, value: string, el: SnapEleme
 
 async function selectNative(loc: Locator, value: string, el: SnapElement) {
   const options = await loc.evaluate((n: HTMLSelectElement) => Array.from(n.options).map((o) => ({ text: o.text.trim(), value: o.value })));
-  const best = options
+  const ranked = options
     .filter((o) => o.value !== "" || o.text)
     .map((o) => ({ ...o, score: Math.max(optionScore(o.text, value), optionScore(o.value, value)) }))
-    .sort((a, b) => b.score - a.score)[0];
+    .sort((a, b) => b.score - a.score);
+  const best = ranked[0];
+  if (best && best.score >= 40 && ranked[1]?.score === best.score && ranked[1].value !== best.value)
+    throw new ActionError(`ambiguous options in ${describe(el)} for "${value}"; specify the exact option`);
   if (!best || best.score < 40)
     throw new ActionError(`no option in ${describe(el)} matched "${value}". Options: ${options.map((o) => o.text).slice(0, 30).join(" | ")}`);
   await loc.selectOption({ value: best.value }, { timeout: 5000 });
+  if (await loc.inputValue() !== best.value)
+    throw new ActionError(`${describe(el)} did not retain the selected option`);
   return `selected "${best.text}" in ${describe(el)}`;
 }
 
@@ -254,8 +274,9 @@ export async function invalidFields(snap: Snapshot, submitId: string) {
   return loc
     .evaluate((btn: HTMLElement) => {
       const form = (btn as HTMLButtonElement).form || btn.closest("form");
-      if (!form) return [] as string[];
-      const names = Array.from(form.querySelectorAll(":invalid"))
+      const scope = form || btn.ownerDocument;
+
+      const names = Array.from(scope.querySelectorAll(":invalid, [aria-invalid=true]"))
         .filter((x) => x.tagName !== "FORM" && x.tagName !== "FIELDSET")
         .map((x) => {
           const e = x as HTMLInputElement;
@@ -270,8 +291,7 @@ export async function invalidFields(snap: Snapshot, submitId: string) {
           return (label || e.name || "a field").replace(/\s+/g, " ").trim().slice(0, 80);
         });
       return [...new Set(names)].slice(0, 12);
-    })
-    .catch(() => [] as string[]);
+    });
 }
 
 const DEMOGRAPHIC =

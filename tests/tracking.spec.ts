@@ -29,7 +29,7 @@ test("concurrent updates reject stale revisions without overwriting the winner",
 });
 test("sync is idempotent, associates retries and never regresses manual progress",async()=>{
   const {service:s}=await setup();
-  expect(await s.sync([run("failed","failed"),run("waiting","awaiting_approval")])).toEqual({changed:0});
+  expect(await s.sync([run("failed","failed")])).toEqual({changed:0});
   expect(await s.sync([run("failed","failed"),run("success")])).toEqual({changed:1});
   let record=(await s.list({})).records[0];expect(record.runIds).toContain("failed");
   record=await s.patch(record.id,{revision:record.revision,status:"interviewing"});
@@ -60,4 +60,12 @@ test("invalid inputs are rejected and CSV escapes spreadsheet content",async()=>
   const a=await s.create({company:'=FORMULA',role:'中文,"岗位"',notes:"第一行\n第二行"});
   const csv=exportCsv([a]);expect(csv.charCodeAt(0)).toBe(0xfeff);
   expect(csv).toContain('"\'=FORMULA"');expect(csv).toContain('中文,""岗位""');expect(csv).toContain("第一行\n第二行");
+});
+
+ test("prepared applications sync without counting as applied, then transition once",async()=>{
+ const {service:s}=await setup(); const r=run("draft","awaiting_approval");
+ await s.sync([r]); let result=await s.list({}); expect(result.records[0].status).toBe("saved"); expect(result.summary.applied).toBe(0);
+ expect(await s.sync([r])).toEqual({changed:0}); r.status="submitted"; await s.sync([r]);
+ result=await s.list({}); expect(result.total).toBe(1); expect(result.records[0].status).toBe("applied"); expect(result.summary.applied).toBe(1);
+ expect(await s.sync([r])).toEqual({changed:0});
 });
