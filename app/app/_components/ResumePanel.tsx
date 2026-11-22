@@ -128,7 +128,7 @@ export function ResumePanel({
           </h2>
           <p className="mt-1 text-sm text-muted">
             {resume
-              ? resume.headline || "Parsed with OpenAI. The agent only uses facts from here and your application details."
+              ? resume.headline || "The agent only uses facts from here and your application details."
               : "上传 PDF / DOCX，或直接粘贴中文、英文简历，读取后可按方向或岗位 JD 定制。"}
           </p>
         </div>

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
+import { zodTextFormat, zodResponseFormat } from "openai/helpers/zod";
 import type { z } from "zod";
 import { config } from "./config";
 
@@ -37,6 +37,26 @@ export function openai() {
   return client;
 }
 
+export function keyKind() {
+  const key = config.qwenKey();
+  return !key ? "missing" : key.startsWith("sk-sp-") ? "token-plan" : "application";
+}
+
+export function keyIssue() {
+  const kind = keyKind();
+  if (kind === "missing" && config.openaiKey()) return null;
+  if (kind === "missing") return "请在 .env.local 配置千问应用密钥 QWEN_API_KEY。";
+  if (kind === "token-plan") return "当前是 Token Plan 套餐密钥；NextRole 后端需要千问按量付费应用密钥。";
+  return null;
+}
+
+export function qwenClient() {
+  const issue = keyIssue();
+  if (issue) throw new UserFacingError(issue);
+  return new OpenAI({ apiKey: config.qwenKey(), baseURL: config.qwenBaseURL, maxRetries: 1, timeout: 120_000 });
+}
+
+
 /** Its message is safe to show in the UI. */
 export class UserFacingError extends Error {}
 
@@ -63,6 +83,32 @@ export async function structured<S extends z.ZodTypeAny>(opts: {
   model?: string;
   effort?: "none" | "low" | "medium" | "high";
 }): Promise<z.infer<S>> {
+  if (config.qwenKey() || !config.openaiKey()) {
+  const body = {
+    model: opts.model || config.model(),
+    messages: [{ role: "system" as const, content: opts.instructions }, { role: "user" as const, content: opts.input }],
+    response_format: zodResponseFormat(opts.schema, opts.name),
+  };
+  const res = await qwenClient().chat.completions.create(body);
+  const answer = res.choices[0];
+  if (answer?.finish_reason === "stop" && answer.message.content) {
+    try { return opts.schema.parse(JSON.parse(answer.message.content)); } catch { /* no model output in error logs */ }
+  }
+  throw new UserFacingError("千问未返回完整且符合约定的 JSON，请检查模型对结构化输出的支持。");
+}
+
+export async function webSearch(instructions: string, input: string) {
+  if (!config.webSearchEnabled()) throw new UserFacingError("千问联网搜索未启用，可先搜索 LinkedIn 公开职位。");
+  const res = await qwenClient().responses.create({
+    model: config.model(),
+    store: false,
+    tools: [{ type: "web_search" }],
+    instructions,
+    input,
+  });
+  return res.output_text;
+}
+  }
   const res = await openai().responses.parse({
     model: opts.model || config.model(),
     reasoning: { effort: opts.effort || "low" },
@@ -76,7 +122,8 @@ export async function structured<S extends z.ZodTypeAny>(opts: {
 }
 
 export async function webSearch(instructions: string, input: string) {
-  const res = await openai().responses.create({
+  if (!config.webSearchEnabled()) throw new UserFacingError("??????????? QWEN_WEB_SEARCH=true?");
+  const res = await (config.qwenKey() ? qwenClient() : openai()).responses.create({
     model: config.model(),
     reasoning: { effort: "low" },
     store: false,

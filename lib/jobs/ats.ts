@@ -27,6 +27,7 @@ type LeverJob = {
   descriptionPlain?: string;
   lists?: { text: string; content: string }[];
   additionalPlain?: string;
+  salaryRange?: {currency?: string; interval?: string; min?:number; max?:number};
   createdAt?: number;
 };
 type AshbyJob = {
@@ -74,6 +75,7 @@ async function lever(company: string, id: string, eu: boolean): Promise<Job> {
     url: j.hostedUrl,
     applyUrl: j.applyUrl,
     employmentType: j.categories?.commitment,
+    pay: structuredPay(j.salaryRange),
     postedAt: j.createdAt ? new Date(j.createdAt).toISOString() : undefined,
     description: [j.descriptionPlain, lists, j.additionalPlain].filter(Boolean).join("\n\n"),
     fetchedAt: now(),
@@ -82,7 +84,7 @@ async function lever(company: string, id: string, eu: boolean): Promise<Job> {
 
 async function ashby(org: string, id: string): Promise<Job> {
   const board = await fetchJson<{ jobs: AshbyJob[] }>(`https://api.ashbyhq.com/posting-api/job-board/${org}`);
-  const j = board.jobs.find((x) => x.id === id);
+  const j = board.jobs.find((x) => x.id === id || new URL(x.jobUrl).pathname.split("/").filter(Boolean).at(-1) === id);
   if (!j) throw new UserFacingError("That Ashby posting is no longer open.");
   return {
     id: `ab-${org}-${id}`,
@@ -97,6 +99,12 @@ async function ashby(org: string, id: string): Promise<Job> {
     description: j.descriptionPlain || "",
     fetchedAt: now(),
   };
+}
+
+function structuredPay(r?: LeverJob["salaryRange"]): Job["pay"] {
+  if (!r || (r.currency !== "CNY" && r.currency !== "USD") || typeof r.min !== "number" || typeof r.max !== "number" || r.min <= 0 || r.max < r.min) return;
+  const period = /^(per-year|yearly|annual)$/i.test(r.interval ?? "") ? "年" : /^(per-month|monthly)$/i.test(r.interval ?? "") ? "月" : undefined;
+  if (period) return {min:r.min, max:r.max, currency:r.currency, period};
 }
 
 export async function fetchAtsJob(rawUrl: string): Promise<Job | null> {
