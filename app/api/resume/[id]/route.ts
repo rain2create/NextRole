@@ -3,6 +3,7 @@ import path from "path";
 import type { NextRequest } from "next/server";
 import { badRequest, route } from "@/lib/api";
 import { getResumeVersion, resumeFilePath } from "@/lib/store";
+import { contentDisposition } from "@/lib/http-files";
 
 const TYPES: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -20,7 +21,7 @@ export const GET = route(async (req: NextRequest, ctx: RouteContext<"/api/resume
   return new Response(body, {
     headers: {
       "Content-Type": TYPES[path.extname(name).toLowerCase()] || "application/octet-stream",
-      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${path.basename(name)}"`,
+      "Content-Disposition": contentDisposition(name, download),
       "Cache-Control": "no-store",
     },
   });

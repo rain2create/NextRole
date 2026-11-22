@@ -4,11 +4,36 @@ import type { z } from "zod";
 import { config } from "./config";
 
 let client: OpenAI | null = null;
+let clientSettings: { apiKey: string; baseURL: string | undefined } | null = null;
+
+export function validateApiBaseUrl(value?: string) {
+  const baseURL = value?.trim();
+  if (!baseURL) return undefined;
+  if (/[;；\s]/u.test(baseURL) || (baseURL.match(/https?:\/\//gi)?.length ?? 0) !== 1) {
+    throw new UserFacingError("OPENAI_BASE_URL 只能填写一个接口根地址，不能用分号拼接多个地址。请保留 OpenAI 兼容地址，然后重启服务。");
+  }
+  let url: URL;
+  try { url = new URL(baseURL); } catch {
+    throw new UserFacingError("OPENAI_BASE_URL 不是有效的网址，请填写以 http:// 或 https:// 开头的接口根地址。");
+  }
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new UserFacingError("OPENAI_BASE_URL 请只填写接口根地址，密钥请放在 OPENAI_API_KEY 中。");
+  }
+  const root = baseURL.replace(/\/+$/, "");
+  if (/\/(?:responses|chat\/completions|apps\/anthropic)$/i.test(root)) {
+    throw new UserFacingError("OPENAI_BASE_URL 需要 OpenAI 兼容接口的根地址，通常以 /v1 结尾；不要填写 /responses、/chat/completions 或 Anthropic 地址。");
+  }
+  return root;
+}
 
 export function openai() {
   const apiKey = config.openaiKey();
   if (!apiKey) throw new UserFacingError("OPENAI_API_KEY is not set. Add it to .env.local and restart the app.");
-  client ??= new OpenAI({ apiKey, maxRetries: 2, timeout: 120_000 });
+  const baseURL = validateApiBaseUrl(config.baseUrl());
+  if (!client || clientSettings?.apiKey !== apiKey || clientSettings?.baseURL !== baseURL) {
+    client = new OpenAI({ apiKey, baseURL, maxRetries: 2, timeout: 120_000 });
+    clientSettings = { apiKey, baseURL };
+  }
   return client;
 }
 
@@ -18,6 +43,7 @@ export class UserFacingError extends Error {}
 export function friendlyError(err: unknown, fallback = "Something went wrong. Please retry.") {
   if (err instanceof UserFacingError) return err.message;
   if (err instanceof OpenAI.APIError) {
+    if (err.status === 404) return "模型服务返回 404：请检查 OPENAI_BASE_URL 是否为单独的 OpenAI 兼容接口根地址，以及 OPENAI_MODEL 是否为该服务提供的模型。修改后请重启服务。";
     if (err.status === 401) return "OpenAI rejected the API key. Check OPENAI_API_KEY in .env.local.";
     if (err.status === 429) return "OpenAI rate limit or quota reached. Wait a moment and retry.";
     return `OpenAI request failed (${err.status ?? "network"}). Please retry.`;

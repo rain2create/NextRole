@@ -2,12 +2,14 @@ import { route } from "@/lib/api";
 import { config } from "@/lib/config";
 import { getProfile, listResumeVersions, saveProfile } from "@/lib/store";
 import type { Preferences, ResumeData } from "@/lib/types";
+import { listTranslationDrafts } from "@/lib/resume/drafts";
 
 export const GET = route(async () => {
   const [profile, versions] = await Promise.all([getProfile(), listResumeVersions()]);
   return Response.json({
     profile,
     versions,
+    translationDrafts: await listTranslationDrafts(profile),
     openai: { configured: Boolean(config.openaiKey()), model: config.model(), agentModel: config.agentModel() },
   });
 });

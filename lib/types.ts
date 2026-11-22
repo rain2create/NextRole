@@ -1,3 +1,5 @@
+export type ResumeDirection = "general" | "state_owned" | "large_company" | "foreign_company";
+
 export type ResumeData = {
   name: string;
   headline: string;
@@ -18,6 +20,7 @@ export type ResumeData = {
     start: string;
     end: string;
     bullets: string[];
+    employmentType?: "work" | "internship" | "unknown";
   }[];
   projects: { name: string; tech: string[]; link: string; bullets: string[] }[];
   education: {
@@ -52,6 +55,9 @@ export type ResumeVersion = {
   id: string;
   kind: "original" | "base" | "tailored";
   jobId?: string;
+  direction?: ResumeDirection;
+  outputLanguage?: "en" | "zh-CN";
+  sourceResumeId?: string;
   label: string;
   fileName: string;
   mimeType: string;
@@ -63,11 +69,25 @@ export type ResumeVersion = {
 
 export type ResumeChange = { section: string; change: string; reason: string };
 
+export type TranslationReview = { id: string; source: string; suggested: string; reason: string };
+
+export type ResumeTranslationDraft = {
+  id: string;
+  sourceResumeId: string;
+  direction: ResumeDirection;
+  outputLanguage?: "en";
+  jobId?: string;
+  label: string;
+  translationReviews: TranslationReview[];
+  createdAt: string;
+};
+
 export type Profile = {
   resume: ResumeData | null;
   resumeText: string;
   originalResumeId: string | null;
   baseResumeId: string | null;
+  resumeDirection?: ResumeDirection | null;
   preferences: Preferences;
   answers: SavedAnswer[];
   updatedAt: string;

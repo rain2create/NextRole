@@ -52,6 +52,7 @@ export async function getProfile(): Promise<Profile> {
     resumeText: p.resumeText ?? "",
     originalResumeId: p.originalResumeId ?? null,
     baseResumeId: p.baseResumeId ?? null,
+    resumeDirection: p.resumeDirection ?? null,
     preferences: { ...emptyPreferences, ...p.preferences },
     answers: p.answers ?? [],
     updatedAt: p.updatedAt ?? new Date(0).toISOString(),

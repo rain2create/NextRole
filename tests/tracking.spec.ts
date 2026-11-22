@@ -61,3 +61,21 @@ test("invalid inputs are rejected and CSV escapes spreadsheet content",async()=>
   const csv=exportCsv([a]);expect(csv.charCodeAt(0)).toBe(0xfeff);
   expect(csv).toContain('"\'=FORMULA"');expect(csv).toContain('中文,""岗位""');expect(csv).toContain("第一行\n第二行");
 });
+
+test("partial note and archive updates preserve every omitted application field", async () => {
+  const { service: s } = await setup();
+  const details = {
+    company: "示例科技", role: "后端工程师", location: "上海", url: "https://example.com/job",
+    status: "interviewing", appliedAt: "2026-11-18T10:00:00Z", resumeVersionId: "resume-existing",
+    interviewAt: "2026-11-25T09:00:00Z", interviewRound: "二面", interviewLocation: "线上会议",
+    notes: "原始备注",
+  };
+  const created = await s.create(details);
+  const edited = await s.patch(created.id, { revision: created.revision, notes: "补充准备内容" });
+  expect(edited).toMatchObject({ ...details, notes: "补充准备内容" });
+  const archived = await s.patch(created.id, { revision: edited.revision, archived: true });
+  expect(archived).toMatchObject({ ...details, notes: "补充准备内容" });
+  expect(archived.archivedAt).not.toBeNull();
+  const restored = await s.patch(created.id, { revision: archived.revision, archived: false });
+  expect(restored).toMatchObject({ ...details, notes: "补充准备内容", archivedAt: null });
+});

@@ -1,11 +1,10 @@
 "use client";
-import { ArrowUpRight, Bot, Check, ChevronDown, Download, FileText, Gauge, Info, Plus, Wand2 } from "lucide-react";
+import { ArrowUpRight, Bot, Check, ChevronDown, Gauge, Info, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Job, Match, ResumeVersion } from "@/lib/types";
+import { detectJobLanguage } from "@/lib/resume/language";
+import type { Job, Match, ResumeDirection, ResumeTranslationDraft, ResumeVersion } from "@/lib/types";
 import { api, errorText, timeAgo } from "./api";
 import { Button, Card, Eyebrow, Notice, SourceBadge, Spinner } from "./ui";
-
-type Tailored = { version: ResumeVersion; gaps: string[] };
 
 export function JobPanel({
   job,
@@ -14,7 +13,8 @@ export function JobPanel({
   originalId,
   agentBusy,
   linkedInSignedIn,
-  onVersionsChanged,
+  direction,
+  translationDrafts = [],
   onStart,
 }: {
   job: Job;
@@ -23,7 +23,8 @@ export function JobPanel({
   originalId: string | null;
   agentBusy: boolean;
   linkedInSignedIn: boolean;
-  onVersionsChanged: () => Promise<void>;
+  direction: ResumeDirection | "";
+  translationDrafts?: ResumeTranslationDraft[];
   onStart: (jobId: string, versionId: string, autoSubmit: boolean) => Promise<void>;
 }) {
   // Keyed by job id in the parent, so state resets per job.
@@ -31,16 +32,14 @@ export function JobPanel({
   const [loading, setLoading] = useState(true);
   const [match, setMatch] = useState<Match | null>(null);
   const [matching, setMatching] = useState(false);
-  const [tailored, setTailored] = useState<Tailored | null>(null);
-  const [tailoring, setTailoring] = useState(false);
   const [showDesc, setShowDesc] = useState(false);
-  const [showLetter, setShowLetter] = useState(false);
   const [autoSubmit, setAutoSubmit] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
 
-  const existing = versions.find((v) => v.jobId === job.id);
-  const tailoredVersion = tailored?.version ?? existing;
+  const outputLanguage = !loading && detail.description?.trim() ? detectJobLanguage(detail.description) : undefined;
+  const translationPending = outputLanguage === "en" && translationDrafts.some((draft) => draft.sourceResumeId === originalId && draft.direction === direction && draft.jobId === job.id && (draft.outputLanguage ?? "en") === outputLanguage);
+  const tailoredVersion = direction && outputLanguage && !translationPending ? versions.find((v) => v.kind === "tailored" && v.jobId === job.id && v.sourceResumeId === originalId && v.direction === direction && v.outputLanguage === outputLanguage) : undefined;
   const [useTailored, setUseTailored] = useState(true);
   const chosenVersion = useTailored && tailoredVersion ? tailoredVersion.id : originalId;
 
@@ -65,21 +64,6 @@ export function JobPanel({
       setError(errorText(err));
     } finally {
       setMatching(false);
-    }
-  };
-
-  const runTailor = async () => {
-    setTailoring(true);
-    setError("");
-    try {
-      const out = await api<Tailored>(`/api/jobs/${encodeURIComponent(job.id)}/tailor`, { method: "POST" });
-      setTailored(out);
-      setUseTailored(true);
-      await onVersionsChanged();
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setTailoring(false);
     }
   };
 
@@ -178,56 +162,6 @@ export function JobPanel({
                 <strong>Worth confirming:</strong> {match.questions_for_user.join(" ")}
               </div>
             )}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 border-t border-line pt-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Wand2 size={17} className="text-accent" />
-            <h3 className="font-semibold">Tailored resume</h3>
-          </div>
-          <Button variant="secondary" onClick={runTailor} busy={tailoring} disabled={!hasResume || loading || !detail.description}>
-            {tailoredVersion ? "Re-tailor" : "Tailor for this job"}
-          </Button>
-        </div>
-        {tailoring && <p className="mt-3 text-sm text-muted">Rewriting your resume for this job description and rendering a PDF — about 20–40 seconds.</p>}
-        {!tailoredVersion && !tailoring && (
-          <p className="mt-2 text-sm text-muted">Reorders and rephrases your real experience for this job, checks every skill against your original resume, and writes a cover letter.</p>
-        )}
-        {tailoredVersion && (
-          <div className="enter mt-3 grid gap-3">
-            {tailoredVersion.changes && tailoredVersion.changes.length > 0 && (
-              <ul className="grid gap-2">
-                {tailoredVersion.changes.map((c, i) => (
-                  <li key={i} className="rounded-xl bg-paper px-3 py-2 text-sm">
-                    <span className="font-semibold">{c.section}:</span> {c.change}
-                    <span className="block text-xs text-muted">{c.reason}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {tailored?.gaps && tailored.gaps.length > 0 && (
-              <p className="text-xs text-muted"><strong className="text-ink">Not claimed (not in your resume):</strong> {tailored.gaps.join("; ")}</p>
-            )}
-            <iframe title="Tailored resume preview" src={`/api/resume/${tailoredVersion.id}#view=FitH`} className="h-[520px] w-full rounded-xl border border-line bg-white" />
-            <div className="flex flex-wrap gap-2">
-              <a href={`/api/resume/${tailoredVersion.id}?download`} className="inline-flex items-center gap-1.5 rounded-xl border border-line-strong px-3 py-2 text-sm font-semibold hover:border-accent hover:text-accent">
-                <Download size={15} /> Resume PDF
-              </a>
-              {tailoredVersion.coverLetterFile && (
-                <a href={`/api/resume/${tailoredVersion.id}?file=cover&download`} className="inline-flex items-center gap-1.5 rounded-xl border border-line-strong px-3 py-2 text-sm font-semibold hover:border-accent hover:text-accent">
-                  <FileText size={15} /> Cover letter PDF
-                </a>
-              )}
-              {tailoredVersion.coverLetter && (
-                <button onClick={() => setShowLetter(!showLetter)} className="rounded-xl px-3 py-2 text-sm text-muted hover:text-ink">
-                  {showLetter ? "Hide" : "Read"} cover letter
-                </button>
-              )}
-            </div>
-            {showLetter && <p className="whitespace-pre-line rounded-xl bg-paper p-3 text-sm leading-relaxed">{tailoredVersion.coverLetter}</p>}
           </div>
         )}
       </div>

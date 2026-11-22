@@ -3,18 +3,19 @@ import { CheckCircle2, Linkedin, LoaderCircle, Rocket, Search } from "lucide-rea
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { AutopilotState } from "@/lib/agent/autopilot";
-import type { ApplicationRun, Job, Profile, ResumeVersion } from "@/lib/types";
+import type { ApplicationRun, Job, Profile, ResumeDirection, ResumeTranslationDraft, ResumeVersion } from "@/lib/types";
 import { api, errorText } from "./_components/api";
 import { AutopilotPanel } from "./_components/AutopilotPanel";
 import { History } from "./_components/History";
 import { JobList } from "./_components/JobList";
 import { JobPanel } from "./_components/JobPanel";
 import { ResumePanel } from "./_components/ResumePanel";
+import type { GenerationMode } from "./_components/ResumeGenerationPanel";
 import { RunPanel } from "./_components/RunPanel";
 import { SearchPanel } from "./_components/SearchPanel";
 import { Card, Eyebrow, Logo, Notice } from "./_components/ui";
 
-type ProfileResponse = { profile: Profile; versions: ResumeVersion[]; openai: { configured: boolean; model: string; agentModel: string } };
+type ProfileResponse = { profile: Profile; versions: ResumeVersion[]; translationDrafts?: ResumeTranslationDraft[]; openai: { configured: boolean; model: string; agentModel: string } };
 const ACTIVE = ["running", "needs_input", "blocked", "awaiting_approval"];
 const DETAIL_LABELS: [keyof Profile["preferences"], string][] = [
   ["workAuthorization", "work authorization"],
@@ -36,6 +37,9 @@ export default function Workspace() {
   const [notice, setNotice] = useState("");
   const [mode, setMode] = useState<"search" | "autopilot">("search");
   const [autopilot, setAutopilot] = useState<AutopilotState | null>(null);
+  const [directionSelection, setDirectionSelection] = useState<ResumeDirection | "" | undefined>(undefined);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>("direction");
+  const direction = directionSelection ?? data?.profile.resumeDirection ?? "";
 
   const loadProfile = useCallback(async () => setData(await api<ProfileResponse>("/api/profile")), []);
   const loadRuns = useCallback(async () => {
@@ -179,6 +183,7 @@ export default function Workspace() {
 
       {mode === "autopilot" ? (
         <AutopilotPanel
+          direction={direction}
           state={autopilot}
           defaultLocation={profile?.resume?.contact.location ?? ""}
           linkedInSignedIn={browser.linkedin}
@@ -204,7 +209,23 @@ export default function Workspace() {
       />
       )}
 
-      <ResumePanel profile={profile} versions={data?.versions ?? []} onChange={loadProfile} />
+      <ResumePanel
+        profile={profile}
+        versions={data?.versions ?? []}
+        onChange={loadProfile}
+        generation={{
+          aiConfigured: Boolean(data?.openai.configured),
+          jobs,
+          selectedJob: selected,
+          onSelectJob: setSelected,
+          direction,
+          onDirectionChange: setDirectionSelection,
+          generationMode,
+          onGenerationModeChange: setGenerationMode,
+          translationDrafts: data?.translationDrafts ?? [],
+          onTranslationDraft: (draft) => setData((current) => current ? { ...current, translationDrafts: [draft, ...(current.translationDrafts ?? []).filter((item) => item.id !== draft.id)] } : current),
+        }}
+      />
 
       {shownRun && (
         <div className="mt-6">
@@ -248,7 +269,8 @@ export default function Workspace() {
               originalId={profile?.originalResumeId ?? null}
               agentBusy={agentBusy}
               linkedInSignedIn={browser.linkedin}
-              onVersionsChanged={loadProfile}
+              direction={direction}
+              translationDrafts={data?.translationDrafts ?? []}
               onStart={start}
             />
           ) : (

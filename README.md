@@ -42,9 +42,9 @@ Applying for jobs is the same loop over and over: find a role, tweak your resume
 | | |
 |---|---|
 | 🔎 **Live job search** | LinkedIn's public listings plus company career sites on **Greenhouse, Lever and Ashby** (found with OpenAI web search and verified through each ATS's public API). Results are ranked against your resume. You can also paste any job link. |
-| 📄 **Resume understanding** | Upload a PDF or DOCX. The text and hidden hyperlinks are parsed into a structured profile. |
+| 📄 **Resume understanding** | Upload a PDF or DOCX, or paste Chinese or English resume text. The content is parsed into a structured profile. |
 | 🎯 **Match analysis** | A score with concrete evidence from your resume, the gaps, and the things worth confirming before you apply. |
-| ✍️ **Per-job tailoring** | A rewritten resume PDF and cover letter for each job. Every edit is listed with a reason. Employers, titles, dates and education are restored in code, and skills you never listed are dropped. |
+| ✍️ **Resume tailoring** | Generate a direction-based or job-specific PDF with Chinese and English layouts. JD language determines job-specific output language, and uncertain English proper names require review before export. Employers, titles, dates and education are restored in code, and skills you never listed are dropped. |
 | 🤖 **Browser agent** | Opens the real application in Chrome and fills it in: text fields, dropdowns, type-aheads, checkboxes and resume uploads. Multi-step and LinkedIn Easy Apply flows are supported. A live view and timeline show every action. |
 | 🙋 **Human in the loop** | Asks for missing facts (and remembers your answers), pauses for sign-ins and CAPTCHAs, and waits for **Approve & submit**. |
 | 🚀 **Autopilot** | Give it a role, a location and a number of applications. It searches, picks the best matches, tailors your resume for each and applies one by one, still stopping for your approval. |
@@ -100,10 +100,20 @@ npm run dev
 
 Open **http://127.0.0.1:3000**. The landing page is at `/` and the workspace at `/app`.
 
-1. **Upload your resume**, then open **Application details** and fill in your location, work authorization, notice period and salary expectations, so the agent rarely has to stop and ask.
+1. **Upload or paste your resume**, then open **Application details** and fill in your location, work authorization, notice period and salary expectations, so the agent rarely has to stop and ask.
 2. *(Optional)* Click **Connect LinkedIn** and sign in yourself in the Chrome window that opens. The session stays in the agent's own browser profile, and the app never sees your password.
-3. **Search** for a role or paste a job link, then **Analyze**, **Tailor for this job** and **Run application agent**. Or switch to **Autopilot** to do several jobs in a row.
+3. **Search** for a role or paste a job link, then **Analyze**. Generate a resume in the top **简历定制** (Resume generation) panel before **Run application agent**. Or switch to **Autopilot** to do several jobs in a row.
 4. Answer any question in the agent panel, check the filled form in Chrome, and click **Approve & submit**. **Don't submit** stops the run and leaves the tab open.
+
+### Resume generation
+
+Choose a direction: general, state-owned enterprises, large companies or foreign companies. **Direction mode** needs a direction and an uploaded or pasted resume; **job mode** also needs a selected job with a usable JD. The generation button stays disabled until those inputs are ready.
+
+For a job-specific resume, a Chinese JD produces Chinese output and an English JD produces English output, including when the foreign-company direction is selected. Without a JD, the foreign-company direction produces English; the other directions follow the source resume language. Every version is generated from the full original resume.
+
+If English names or credentials need confirmation, review the suggested translations in the same panel and select **确认译名并生成 PDF**. Download and preview become available after confirmation. Pending reviews survive refresh, and the original resume remains available separately. Technology names and score fields such as GPA are retained when translating prose into Chinese.
+
+The Chinese layout orders education, work or internship experience, independent projects and skills. The English layout orders Summary, Education, Experience, Projects, Achievements, Certifications and Skills. Empty sections are hidden.
 
 ## Configuration
 
@@ -112,6 +122,7 @@ All settings are environment variables in `.env.local`:
 | Variable | Default | Description |
 |---|---|---|
 | `OPENAI_API_KEY` | — | **Required.** Used for parsing, matching, tailoring, web search and the agent. |
+| `OPENAI_BASE_URL` | Official API | Optional compatible Responses API root URL (usually ending in `/v1`). The browser agent requires image input and function tools; live web search requires `web_search`. Chat-Completions-only endpoints are not supported. |
 | `OPENAI_MODEL` | `gpt-5.5` | Model for parsing, matching, tailoring and search. |
 | `OPENAI_AGENT_MODEL` | `OPENAI_MODEL` | Model that drives the browser agent. |
 | `BROWSER_CHANNEL` | `chrome` | `chrome`, `msedge` or `chromium`. |
