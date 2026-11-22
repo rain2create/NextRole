@@ -83,31 +83,19 @@ export async function structured<S extends z.ZodTypeAny>(opts: {
   model?: string;
   effort?: "none" | "low" | "medium" | "high";
 }): Promise<z.infer<S>> {
-  if (config.qwenKey() || !config.openaiKey()) {
+  if (config.qwenKey() || process.env.OPENAI_API_MODE === "chat" || !config.openaiKey()) {
   const body = {
+    ...(config.qwenKey() ? { enable_thinking: false } : {}),
     model: opts.model || config.model(),
     messages: [{ role: "system" as const, content: opts.instructions }, { role: "user" as const, content: opts.input }],
     response_format: zodResponseFormat(opts.schema, opts.name),
   };
-  const res = await qwenClient().chat.completions.create(body);
+  const res = await (config.qwenKey() || !config.openaiKey() ? qwenClient() : openai()).chat.completions.create(body);
   const answer = res.choices[0];
   if (answer?.finish_reason === "stop" && answer.message.content) {
     try { return opts.schema.parse(JSON.parse(answer.message.content)); } catch { /* no model output in error logs */ }
   }
   throw new UserFacingError("千问未返回完整且符合约定的 JSON，请检查模型对结构化输出的支持。");
-}
-
-export async function webSearch(instructions: string, input: string) {
-  if (!config.webSearchEnabled()) throw new UserFacingError("千问联网搜索未启用，可先搜索 LinkedIn 公开职位。");
-  const res = await qwenClient().responses.create({
-    model: config.model(),
-    store: false,
-    tools: [{ type: "web_search" }],
-    instructions,
-    input,
-  });
-  return res.output_text;
-}
   }
   const res = await openai().responses.parse({
     model: opts.model || config.model(),
@@ -122,7 +110,7 @@ export async function webSearch(instructions: string, input: string) {
 }
 
 export async function webSearch(instructions: string, input: string) {
-  if (!config.webSearchEnabled()) throw new UserFacingError("??????????? QWEN_WEB_SEARCH=true?");
+  if (!config.webSearchEnabled()) throw new UserFacingError("Web search is disabled; set QWEN_WEB_SEARCH=true.");
   const res = await (config.qwenKey() ? qwenClient() : openai()).responses.create({
     model: config.model(),
     reasoning: { effort: "low" },
@@ -132,4 +120,35 @@ export async function webSearch(instructions: string, input: string) {
     input,
   });
   return res.output_text;
+}
+
+/** Translate the agent's single-step Responses request for a Chat Completions gateway. */
+export async function agentResponse(
+  request: OpenAI.Responses.ResponseCreateParamsNonStreaming,
+  options: { signal: AbortSignal },
+) {
+  if (!config.qwenKey() && process.env.OPENAI_API_MODE !== "chat") return openai().responses.create(request, options);
+  const inputs = request.input as { role: "user"; content: ({ type: "input_text"; text: string } | { type: "input_image"; image_url: string; detail: "low" })[] }[];
+  const tools = request.tools as OpenAI.Responses.FunctionTool[];
+  const result = await (config.qwenKey() ? qwenClient() : openai()).chat.completions.create({
+    model: request.model!,
+    ...{ enable_thinking: false },
+    messages: [
+      { role: "system", content: request.instructions || "" },
+      ...inputs.map(item => ({ role: item.role, content: item.content.map(part =>
+        part.type === "input_text" ? { type: "text" as const, text: part.text }
+          : { type: "image_url" as const, image_url: { url: part.image_url, detail: part.detail } }) })),
+    ],
+    tools: tools.map(tool => ({ type: "function" as const, function: {
+      name: tool.name, description: tool.description || undefined,
+      parameters: tool.parameters || undefined, strict: tool.strict,
+    } })),
+    parallel_tool_calls: request.parallel_tool_calls ?? true,
+  }, options);
+  return {
+    usage: { input_tokens: result.usage?.prompt_tokens || 0, output_tokens: result.usage?.completion_tokens || 0 },
+    output: (result.choices[0]?.message.tool_calls || []).flatMap(call => call.type === "function" ? [{
+      type: "function_call" as const, name: call.function.name, arguments: call.function.arguments,
+    }] : []),
+  };
 }

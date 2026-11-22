@@ -32,3 +32,8 @@ AGENT_BUILD_BRIEF.md
 /roleflow-server.pid
 .DS_Store
 Thumbs.db
+
+# Local-only test artifacts and timing tools (not part of team integration)
+output/
+scripts/timing-report.mjs
+scripts/start-nextrole.command

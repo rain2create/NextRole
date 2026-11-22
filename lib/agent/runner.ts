@@ -152,6 +152,10 @@ const short = (s: string, n = 70) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 async function perform(ctl: Ctl, snap: Snapshot, name: string, args: Record<string, unknown>): Promise<"next" | "stop" | "end"> {
   const page = ctl.page!;
+  // Models sometimes copy display brackets around IDs; retain current-snapshot validation.
+  const cleanId = (id: unknown) => String(id).trim().replace(/^\[([^\[\]]+)\]$/, "$1");
+  for (const key of ["id", "submit_id"]) if (args[key] !== undefined) args[key] = cleanId(args[key]);
+  if (Array.isArray(args.fields)) args.fields = args.fields.map(f => ({ ...f, id: cleanId(f.id) }));
   switch (name) {
     case "fill_fields": {
       const fields = (args.fields as { id: string; value: string }[]) || [];
@@ -275,7 +279,14 @@ async function perform(ctl: Ctl, snap: Snapshot, name: string, args: Record<stri
       const submitId = String(args.submit_id);
       const summary = String(args.summary);
       const unresolved = (args.unresolved as string[]) || [];
-      const invalid = await invalidFields(snap, submitId).catch(() => [] as string[]);
+      let invalid: string[];
+      try {
+        invalid = await invalidFields(snap, submitId);
+      } catch {
+        ctl.history.push("Submission validation could not run. Refresh the snapshot and inspect the form before retrying.");
+        log(ctl, "warning", "Could not validate form", "Submission remains blocked until validation succeeds.");
+        return "stop";
+      }
       if (invalid.length) {
         // The browser would reject the form, so don't ask for approval yet.
         ctl.history.push(`ready_to_submit REJECTED: these required fields are empty or invalid: ${invalid.join("; ")}. Fill them (or ask the candidate) first.`);

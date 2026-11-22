@@ -121,7 +121,7 @@ export function saveRun(run: ApplicationRun) {
     if (at >= 0) all[at] = run;
     else all.unshift(run);
     await writeJson("application-runs.json", all);
-    if (run.status === "submitted") {
+    if (run.status === "submitted" || run.status === "awaiting_approval") {
       await syncApplicationRun(run).catch((error) => console.error("[tracking] Sync failed; retry from application management", error));
     }
     return run;

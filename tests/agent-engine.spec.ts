@@ -150,3 +150,29 @@ test("demographic answers are blocked unless they decline", async ({ page }) => 
   expect(demographicBlock(snap, id("Gender"), "Prefer not to say")).toBeNull();
   expect(demographicBlock(snap, id("Current location ✱"), "Delhi")).toBeNull();
 });
+
+test("rejects a field that replaces input with a different nonempty value", async ({ page }) => {
+  await page.setContent('<label>Name<input onblur="this.value=\'Someone else\'"></label>');
+  const snap = await takeSnapshot(page);
+  await expect(fillField(snap, snap.elements.find(e => e.kind === "input")!.id, "Jordan Lee")).rejects.toThrow("different value");
+});
+
+test("rejects ambiguous native dropdown choices", async ({ page }) => {
+  await page.setContent('<label>Location<select><option value="a">York North</option><option value="b">York South</option></select></label>');
+  const snap = await takeSnapshot(page);
+  await expect(fillField(snap, snap.elements.find(e => e.kind === "select")!.id, "York")).rejects.toThrow("ambiguous");
+});
+
+test("validates custom errors even when submit is outside a form", async ({ page }) => {
+  await page.setContent('<label>Email<input aria-invalid="true"></label><button>Submit application</button>');
+  const snap = await takeSnapshot(page);
+  expect(await invalidFields(snap, snap.elements.find(e => e.kind === "button")!.id)).toContain("Email");
+});
+
+test("validation failure is propagated when the submit element disappears", async ({ page }) => {
+  await page.setContent('<button>Submit application</button>');
+  const snap = await takeSnapshot(page);
+  await page.locator("button").evaluate(n => n.remove());
+  page.setDefaultTimeout(500);
+  await expect(invalidFields(snap, snap.elements[0].id)).rejects.toThrow();
+});
