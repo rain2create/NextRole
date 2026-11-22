@@ -1,4 +1,6 @@
-# Roleflow demo video
+# Historical upstream demo — retained by NextRole
+
+This folder preserves the original Roleflow / Remotion demonstration and its attribution. It does not represent the current NextRole interface. For the current GIF and screenshots, see [NextRole showcase](../docs/media/README.md); to regenerate those assets, use `scripts/capture-showcase.cjs` from the repository root.
 
 [Remotion](https://www.remotion.dev) source for the product demo in [`docs/media/`](../docs/media):
 `roleflow-demo.mp4` (1920×1080, 30 fps), the README GIF and the poster frame.

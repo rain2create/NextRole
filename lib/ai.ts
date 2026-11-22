@@ -46,14 +46,14 @@ export function keyIssue() {
   const kind = keyKind();
   if (kind === "missing" && config.openaiKey()) return null;
   if (kind === "missing") return "请在 .env.local 配置千问应用密钥 QWEN_API_KEY。";
-  if (kind === "token-plan") return "当前是 Token Plan 套餐密钥；NextRole 后端需要千问按量付费应用密钥。";
   return null;
 }
 
 export function qwenClient() {
   const issue = keyIssue();
   if (issue) throw new UserFacingError(issue);
-  return new OpenAI({ apiKey: config.qwenKey(), baseURL: config.qwenBaseURL, maxRetries: 1, timeout: 120_000 });
+  const baseURL = validateApiBaseUrl(config.qwenBaseURL);
+  return new OpenAI({ apiKey: config.qwenKey(), baseURL, maxRetries: 1, timeout: 120_000 });
 }
 
 

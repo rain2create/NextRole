@@ -2,7 +2,7 @@
   "name": "nextrole",
   "version": "1.0.0",
   "private": true,
-  "description": "Open-source AI job application agent: live job search, per-job resume tailoring and an OpenAI-driven browser agent that fills real applications for your approval.",
+  "description": "NextRole 智能求职工作台：岗位搜索、简历定制、浏览器辅助投递与申请进度管理。",
   "license": "MIT",
   "engines": {
     "node": ">=20.9.0"

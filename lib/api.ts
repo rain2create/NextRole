@@ -7,7 +7,7 @@ export function route<A extends unknown[]>(handler: (...args: A) => Promise<Resp
       return await handler(...args);
     } catch (err) {
       const message = friendlyError(err, fallback);
-      console.error("[roleflow]", message);
+      console.error("[nextrole]", message);
       return Response.json({ error: message }, { status: 500 });
     }
   };

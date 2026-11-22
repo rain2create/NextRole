@@ -53,6 +53,7 @@ export type SavedAnswer = { question: string; answer: string; savedAt: string };
 
 export type ResumeVersion = {
   id: string;
+  removedAt?: string;
   kind: "original" | "base" | "tailored";
   jobId?: string;
   direction?: ResumeDirection;

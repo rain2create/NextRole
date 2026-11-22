@@ -159,7 +159,7 @@ test("JD mode requires both direction and a usable JD, and clearing either disab
   await expect(page.getByText("MODEL_CHANGE_DETAIL_FIXTURE")).toHaveCount(0);
   await expect(page.getByText("MODEL_CHANGE_REASON_FIXTURE")).toHaveCount(0);
   await expect(page.getByText("MODEL_GAP_DETAIL_FIXTURE")).toHaveCount(0);
-  await expect(page.getByRole("radio", { name: /Tailored PDF for/ })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /为/ })).toBeChecked();
 });
 
 test("Chinese pasted resume is submitted as text before generation becomes available", async ({ page }) => {
@@ -221,14 +221,14 @@ test("foreign-company terms must be confirmed before a final PDF can be used", a
   await searchFixtureJobs(page);
   await page.getByRole("radio", { name: "岗位专属版（需 JD）", exact: true }).check();
   await page.getByLabel("修改方向", { exact: true }).selectOption("foreign_company");
-  await expect(page.getByRole("radio", { name: /Tailored PDF for/ })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /为/ })).toBeChecked();
   await page.getByTestId("generate-resume").click();
   await expect(page.getByTestId("translation-review")).toBeVisible();
   await expect(page.getByTestId("generate-resume")).toHaveAccessibleName("草稿已生成，等待译名确认");
   await expect(page.getByTestId("pending-pdf-download")).toBeDisabled();
   await expect(page.locator("#resume-generation-readiness")).toContainText("待确认 1 项译名");
   await expect(page.locator("iframe")).toHaveCount(0);
-  await expect(page.getByRole("radio", { name: /Tailored PDF for/ })).toHaveCount(0);
+  await expect(page.getByRole("radio", { name: /为/ })).toHaveCount(0);
   await expect(page.getByTestId("resume-generation").getByRole("link", { name: "下载简历 PDF", exact: true })).toHaveCount(0);
   const input = page.getByLabel("英文译名：示例科技有限公司", { exact: true });
   const confirm = page.getByTestId("confirm-translations");
@@ -245,7 +245,7 @@ test("foreign-company terms must be confirmed before a final PDF can be used", a
   await confirm.click();
   await expect(page.getByTestId("translation-review")).toHaveCount(0);
   await expect(page.getByTestId("resume-generation").locator("iframe")).toHaveAttribute("src", /confirmed-english/);
-  await expect(page.getByRole("radio", { name: /Tailored PDF for/ })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /为/ })).toBeChecked();
   expect(fixture.generatedRequests).toHaveLength(1);
   expect(fixture.confirmationRequests).toEqual([
     { translations: { "experience.0.company": "Confirmed Example Technology Ltd." } },
@@ -308,12 +308,12 @@ test("a Chinese JD overrides the foreign direction and ignores an old English dr
   await expect(page.getByTestId("resume-output-language")).toHaveText("JD 语言：中文；本次生成：中文简历。");
   await expect(page.getByTestId("translation-review")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "继续确认：旧英文草稿", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("radio", { name: /Tailored PDF for/ })).toHaveCount(0);
+  await expect(page.getByRole("radio", { name: /为/ })).toHaveCount(0);
   await expect(page.locator("iframe")).toHaveCount(0);
   await expect(page.getByTestId("generate-resume")).toBeEnabled();
   await page.getByTestId("generate-resume").click();
   await expect(page.getByTestId("resume-generation").getByRole("link", { name: "下载简历 PDF", exact: true })).toBeVisible();
-  await expect(page.getByRole("radio", { name: /Tailored PDF for/ })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /为/ })).toBeChecked();
   expect(fixture.versions[0]).toMatchObject({ direction: "foreign_company", outputLanguage: "zh-CN" });
   expect(fixture.confirmationRequests).toHaveLength(0);
 });

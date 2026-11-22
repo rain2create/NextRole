@@ -1,5 +1,5 @@
 "use client";
-import { Search, Sparkles, Undo2 } from "lucide-react";
+import { Search, Sparkles, Undo2, Upload } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { degrees, fields, type Criteria } from "@/lib/jobs/criteria";
 import type { SearchFeedback } from "@/lib/store";
@@ -11,10 +11,11 @@ type Direction = { title: string; evidence: string; gap: string };
 const num = (s: string) => s === "" ? undefined : Number(s);
 const initial: Criteria = { currency:"CNY", period:"月", payKind:"不限", must:[], confirmedOnly:false };
 
-export function SearchPanel({ defaultLocation, hasResume, aiReady, profileLoaded, onResults, onImported }: {
+export function SearchPanel({ defaultLocation, hasResume, aiReady, profileLoaded, onResults, onImported, onUploadResume, resumeBusy, uploadDisabled }: {
   profileLoaded:boolean;
   defaultLocation:string; hasResume:boolean; aiReady:boolean;
   onResults:(jobs:Job[], errors:string[], query:string)=>void; onImported:(job:Job)=>void;
+  onUploadResume:()=>void; resumeBusy:boolean; uploadDisabled:boolean;
 }) {
   const [query,setQuery] = useState(""), [location,setLocation] = useState<string|null>(null);
   const [criteria,setCriteria] = useState<Criteria>(initial), [web,setWeb] = useState<boolean|null>(null), [linkedin,setLinkedin] = useState(true);
@@ -67,8 +68,13 @@ export function SearchPanel({ defaultLocation, hasResume, aiReady, profileLoaded
     <Field label={label}><select className={inputCls} value={value??""} onChange={e=>change(e.target.value)}>
       {optional && <option value="">不限</option>}{options.map(o=><option key={o}>{o}</option>)}
     </select></Field>;
-  return <section id="search" className="mx-auto max-w-4xl scroll-mt-6 py-8">
-    <h1 className="mb-5 text-2xl font-semibold">岗位搜索</h1>
+  return <section id="search" className="surface my-5 scroll-mt-6 rounded-2xl border border-line bg-card p-5 sm:p-7">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div><h2 className="text-xl font-semibold">发现适合你的岗位</h2><p className="mt-2 text-sm text-muted">输入目标岗位，或上传简历，让我们帮你找到方向。</p></div>
+      <Button type="button" variant="secondary" onClick={onUploadResume} busy={resumeBusy} disabled={uploadDisabled}>
+        <Upload size={16}/> {hasResume ? "更换简历" : "上传简历"}
+      </Button>
+    </div>
     <form onSubmit={search} className="grid gap-4">
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
         <Field label="目标岗位"><input className={inputCls} value={query} maxLength={180} placeholder="例如：算法工程师；留空从简历推荐" onChange={e=>setQuery(e.target.value)} /></Field>
@@ -80,11 +86,11 @@ export function SearchPanel({ defaultLocation, hasResume, aiReady, profileLoaded
           <input type="checkbox" className="mt-1" checked={chosen.includes(d.title)} onChange={e=>setChosen(a=>e.target.checked?[...a,d.title]:a.filter(t=>t!==d.title))}/>
           <span><b>{d.title}</b><span className="block">依据：{d.evidence}</span><span className="block text-muted">待确认：{d.gap}</span></span>
         </label>)}</fieldset>}
-      <div className="flex flex-wrap gap-4 text-sm">
-        <label title={aiReady ? undefined : "需要千问应用密钥并启用 QWEN_WEB_SEARCH"}><input type="checkbox" disabled={!aiReady} checked={aiReady && (web??true)} onChange={e=>setWeb(e.target.checked)}/> 企业招聘页</label>
+      <div className="search-sources">
+        <label title={aiReady ? undefined : "当前未启用联网搜索"}><input type="checkbox" disabled={!aiReady} checked={aiReady && (web??true)} onChange={e=>setWeb(e.target.checked)}/> 企业招聘页</label>
         <label><input type="checkbox" checked={linkedin} onChange={e=>setLinkedin(e.target.checked)}/> LinkedIn 公开职位</label>
-        <label><input type="checkbox" checked={stripe} onChange={e=>setStripe(e.target.checked)}/> Stripe 职位板（Greenhouse）</label>
-        <label><input type="checkbox" checked={zhaopin} onChange={e=>setZhaopin(e.target.checked)}/> 智联招聘（API.SH，1 credit/方向）</label>
+        <label><input type="checkbox" checked={stripe} onChange={e=>setStripe(e.target.checked)}/> Stripe 招聘</label>
+        <label><input type="checkbox" checked={zhaopin} onChange={e=>setZhaopin(e.target.checked)}/> 智联招聘（每个方向消耗 1 积分）</label>
       </div>
       <details className="border-y border-line py-3"><summary className="cursor-pointer font-medium">搜索条件</summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">

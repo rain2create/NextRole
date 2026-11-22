@@ -65,16 +65,47 @@ export async function saveProfile(profile: Profile) {
   return profile;
 }
 
-export async function listResumeVersions() {
-  return readJson<ResumeVersion[]>("resume-versions.json", []);
+export async function listResumeVersions(includeRemoved = false) {
+  const versions = await readJson<ResumeVersion[]>("resume-versions.json", []);
+  return includeRemoved ? versions : versions.filter(v => !v.removedAt);
 }
-export async function getResumeVersion(id: string) {
-  return (await listResumeVersions()).find((v) => v.id === id);
+export async function getResumeVersion(id: string, includeRemoved = false) {
+  return (await listResumeVersions(includeRemoved)).find((v) => v.id === id);
 }
+let resumeVersionsLock: Promise<unknown> = Promise.resolve();
 export async function addResumeVersion(version: ResumeVersion) {
-  const all = await listResumeVersions();
+  const task = resumeVersionsLock.then(async () => {
+  const all = await listResumeVersions(true);
   await writeJson("resume-versions.json", [version, ...all.filter((v) => v.id !== version.id)]);
   return version;
+  });
+  resumeVersionsLock = task.catch(() => {});
+  return task;
+}
+export async function removeResumeVersion(id: string) {
+  const task = resumeVersionsLock.then(async () => {
+    const all = await listResumeVersions(true);
+    const version = all.find(v => v.id === id && !v.removedAt);
+    if (!version) return false;
+    // Retain the file for historical application downloads.
+    version.removedAt = new Date().toISOString();
+    await writeJson("resume-versions.json", all);
+    const profile = await getProfile();
+    if (profile.originalResumeId === id) {
+      profile.resume = null;
+      profile.resumeText = "";
+      profile.originalResumeId = null;
+      profile.baseResumeId = null;
+      profile.resumeDirection = null;
+      await saveProfile(profile);
+    } else if (profile.baseResumeId === id) {
+      profile.baseResumeId = null;
+      await saveProfile(profile);
+    }
+    return true;
+  });
+  resumeVersionsLock = task.catch(() => {});
+  return task;
 }
 export const resumeFilePath = (fileName: string) => dataPath("resumes", fileName);
 

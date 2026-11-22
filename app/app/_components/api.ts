@@ -7,19 +7,19 @@ export async function api<T>(path: string, init?: RequestInit & { json?: unknown
     cache: "no-store",
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error || "Something went wrong. Please retry.");
+  if (!res.ok) throw new Error((data as { error?: string }).error || "操作失败，请重试。");
   return data as T;
 }
 
-export const errorText = (err: unknown) => (err instanceof Error ? err.message : "Something went wrong. Please retry.");
+export const errorText = (err: unknown) => (err instanceof Error ? err.message : "操作失败，请重试。");
 
 export function timeAgo(iso?: string) {
   if (!iso) return "";
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
   if (Number.isNaN(days)) return "";
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
+  if (days <= 0) return "今天";
+  if (days === 1) return "昨天";
+  if (days < 30) return `${days} 天前`;
   const months = Math.floor(days / 30);
-  return months === 1 ? "1 month ago" : `${months} months ago`;
+  return months === 1 ? "1 个月前" : `${months} 个月前`;
 }

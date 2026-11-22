@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please report vulnerabilities privately through [GitHub's private vulnerability reporting](https://github.com/Deveshu04/roleflow/security/advisories/new), not in public issues. Include steps to reproduce and the impact you expect. You can expect an acknowledgement within a few days.
+Please report vulnerabilities privately through [GitHub's private vulnerability reporting](https://github.com/rain2create/NextRole/security/advisories/new), not in public issues. Include steps to reproduce and the impact you expect. You can expect an acknowledgement within a few days.
 
 ## Supported versions
 
@@ -10,7 +10,7 @@ Only the latest release on `main` receives fixes.
 
 ## Security model
 
-Roleflow is a **single-user application that runs on your own machine**. It has no accounts or authentication of its own, so its safety depends on the following:
+NextRole is a **single-user application that runs on your own machine**. It has no accounts or authentication of its own, so its safety depends on the following:
 
 | Concern | How it is handled |
 |---|---|
@@ -18,7 +18,7 @@ Roleflow is a **single-user application that runs on your own machine**. It has 
 | Cross-site requests | A proxy (`proxy.ts`) rejects API calls whose `Host` isn't localhost (DNS rebinding) or that come from another origin (CSRF), so a website you visit can't start runs or approve submissions. |
 | API keys | `QWEN_API_KEY` is read server-side from the environment. `.env.local` is git-ignored and the key is never returned by the profile or connection-check API. |
 | Personal data | Resumes, parsed profiles, job data, application history and browser profiles live in `data/`. Resume text, relevant job information and browser-agent snapshots are sent to Qwen when those features run. The connection check uses synthetic text only. |
-| Credentials | The app never asks for or stores passwords. Sign-ins (LinkedIn, ATS accounts) happen in the agent's own Chrome profile, where you type them yourself. |
+| Credentials | Website sign-ins happen manually in a dedicated Chrome / Edge profile, followed by a separate browser-agent handoff. SMTP email applications do require an authorization/app password; it is stored in the local mail settings file and is not sent to the model. |
 | Prompt injection | Job descriptions and web pages are treated as untrusted data in every prompt. The agent can only navigate to public `http(s)` URLs, and submission, demographic answers and URL targets are enforced in code, not only in prompts. |
 | Server-side fetches | Pasted job links are fetched only when the host resolves to public addresses, and every redirect hop is re-checked (no `localhost`, private ranges, `file:` and so on). The agent's browser also blocks requests to local and private-network addresses. |
 | CAPTCHAs and bot checks | Never bypassed. The run pauses for you instead. |
@@ -36,4 +36,4 @@ Dependabot alerts notify the maintainer about vulnerable dependencies. Updates a
 
 ### Known advisory
 
-`mammoth` (the DOCX reader) depends on `argparse@1` → `sprintf-js`, which has a moderate denial-of-service advisory. Only mammoth's command-line entry point uses it, and Roleflow never calls that.
+`mammoth` (the DOCX reader) depends on `argparse@1` → `sprintf-js`, which has a moderate denial-of-service advisory. Only mammoth's command-line entry point uses it, and NextRole never calls that.

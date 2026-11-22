@@ -30,6 +30,7 @@ AGENT_BUILD_BRIEF.md
 .idea/
 *.log
 /roleflow-server.pid
+/nextrole-server.pid
 .DS_Store
 Thumbs.db
 

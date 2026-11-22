@@ -1,298 +1,99 @@
-# Architecture
+# NextRole 架构
 
-NextRole runs locally as a Next.js application. This document describes the upstream Roleflow architecture. In this fork, the model provider is Qwen, not OpenAI. Current environment settings and protocol details are in [JOB_DISCOVERY.md](JOB_DISCOVERY.md). The upstream diagrams below are historical.
+NextRole 是本机运行的 Next.js 单用户求职工作台。前端统一使用中文导航、NextRole 双翼标志与可切换的柔态外观；服务端负责岗位发现、模型调用、浏览器填表、邮件投递和状态存储。
 
-- [High-level design](#high-level-design)
-- [Components](#components)
-- [Input → output flows](#input--output-flows)
-- [The browser agent](#the-browser-agent)
-- [Autopilot](#autopilot)
-- [Guardrails](#guardrails)
-- [Data model and storage](#data-model-and-storage)
-- [API surface](#api-surface)
-- [Configuration](#configuration)
-- [Design decisions](#design-decisions)
-
-## High-level design
+## 模块与数据流
 
 ```mermaid
 flowchart LR
-  subgraph Browser["Your browser"]
-    L["Landing page<br/>public/landing"]
-    W["Workspace /app<br/>React client"]
-  end
-
-  subgraph Server["Next.js server · 127.0.0.1"]
-    PX["proxy.ts<br/>localhost + same-origin only"]
-    API["Route handlers<br/>app/api/*"]
-    JOBS["lib/jobs<br/>search · import · match"]
-    RES["lib/resume<br/>parse · tailor · render"]
-    AG["lib/agent<br/>runner · autopilot · actions"]
-    ST[("data/<br/>JSON + files")]
-  end
-
-  subgraph External["External services"]
-    OAI["OpenAI Responses API<br/>gpt-5.5"]
-    LI["LinkedIn<br/>public job pages"]
-    ATS["Greenhouse · Lever · Ashby<br/>public posting APIs"]
-    SITES["Employer application pages"]
-  end
-
-  CH["Chrome via Playwright<br/>persistent agent profile"]
-
-  W -- "fetch / poll" --> PX --> API
-  API --> JOBS & RES & AG
-  JOBS --> LI & ATS & OAI
-  RES --> OAI
-  RES -- "HTML → PDF" --> CH
-  AG --> OAI
-  AG -- "observe / act" --> CH
-  CH --> SITES
-  JOBS & RES & AG <--> ST
+  UI["NextRole 工作台"] --> API["Next.js API"]
+  API --> JOBS["岗位发现与匹配"]
+  API --> RESUME["简历解析与定制"]
+  API --> AGENT["浏览器填表 / 自动投递"]
+  API --> MAIL["SMTP 邮件投递"]
+  API --> TRACK["申请管理"]
+  JOBS --> SOURCES["LinkedIn / Stripe / API.SH / 企业招聘页"]
+  JOBS & RESUME & AGENT --> AI["Qwen / 兼容模型接口"]
+  AGENT --> BROWSER["专用浏览器资料 + Playwright"]
+  BROWSER --> REVIEW["人工检查与提交确认"]
+  AGENT & MAIL --> TRACK
+  RESUME & JOBS & AGENT & MAIL & TRACK --> DATA[("本地 JSON 与文件")]
 ```
 
-| Layer | Responsibility |
-|---|---|
-| **Landing page** (`public/landing/index.html`) | Static marketing page served at `/` via a rewrite. |
-| **Workspace** (`app/app/`) | Client UI with search, resume, job panel, Autopilot, live agent panel and history. It polls the API while a run is active. |
-| **Route handlers** (`app/api/`) | Validate input and call one service. Errors are converted to user-safe JSON by `lib/api.ts`. |
-| **Services** (`lib/`) | All the logic: job sourcing, resume pipeline, browser agent, persistence. |
-| **Chrome** | One persistent, visible profile for the agent (your sign-ins stay there), plus a headless instance used only to render PDFs. |
-| **OpenAI** | Structured outputs (zod schemas), web search, and function calling with screenshots for the agent. |
+| 位置 | 职责 |
+| --- | --- |
+| `public/landing/index.html` | 中文项目介绍页，通过 rewrite 映射到 `/` |
+| `app/app/` | 求职工作台、申请管理 `/app/tracking`、邮件投递 `/app/email` |
+| `app/appearance.*`、`app/ambient-surface.ts` | 三种主题、外观偏好、柔态背景及减少动效回退 |
+| `app/api/` | 参数验证、服务入口与错误响应 |
+| `lib/ai.ts`、`lib/config.ts` | 模型客户端、结构化输出、工具调用与配置 |
+| `lib/jobs/` | 搜索、链接导入、ATS 核验、条件筛选、匹配、反馈 |
+| `lib/resume/` | 解析、方向 / JD 定制、译名确认、PDF 渲染 |
+| `lib/agent/` | 浏览器生命周期、页面快照、动作执行、任务状态、Autopilot |
+| `lib/email/` | SMTP 配置验证、邮件准备与确认发送 |
+| `lib/tracking/` | 申请状态、汇总、分页、时间线、同步与 CSV 导出 |
+| `lib/store.ts` | JSON 与简历文件存储，投递结果同步入口 |
 
-## Components
+## 模型协议
 
-```
-app/
-  app/                    workspace UI (page + _components)
-  api/                    route handlers (see API surface)
-lib/
-  ai.ts                   OpenAI client, structured() and webSearch() helpers, user-safe errors
-  config.ts               environment-driven settings
-  store.ts                JSON persistence with per-file write queues
-  url-safety.ts           public-address guard for fetches and navigation
-  request-guard.ts        localhost / same-origin check used by proxy.ts
-  jobs/                   linkedin.ts · ats.ts · web.ts · search.ts · match.ts · details.ts · http.ts
-  resume/                 parse.ts · tailor.ts · render.ts · service.ts · schema.ts · text.ts
-  agent/                  browser.ts · snapshot.ts · actions.ts · prompts.ts · runner.ts · autopilot.ts
-public/landing/           landing page and self-hosted fonts
-tests/                    Playwright tests for the agent's form engine
-video/                    Remotion source of the demo video
-```
+优先使用 `QWEN_API_KEY`；未设置时可使用 `OPENAI_API_KEY` 的兼容配置。地址与模型由环境变量指定，Token Plan 前缀密钥会选择对应的默认端点。
 
-## Input → output flows
+| 场景 | 当前实现 |
+| --- | --- |
+| 解析、匹配、推荐、定制 | Qwen / chat 模式调用 Chat Completions，请求 JSON Schema 并用 Zod 验证；Responses 模式使用结构化 Responses 输出 |
+| 浏览器决策 | `agentResponse()` 将文本、截图和函数工具转换为 Chat Completions 请求，或直接使用 Responses；返回工具动作交给执行器 |
+| 联网发现 | `webSearch()` 独立调用 Responses 的 `web_search`，由 `QWEN_WEB_SEARCH` 控制；尚未提供通用搜索 API 替代层 |
 
-### 1. Resume ingestion
+文字生成、网页视觉工具调用、联网搜索是三个分别验证的能力。配置以 `lib/config.ts` 和 `.env.example` 为准；接口适配不代表任何套餐自动包含全部能力。
 
-```mermaid
-flowchart LR
-  A["PDF / DOCX upload"] --> B["Text + hyperlinks<br/>unpdf / mammoth"]
-  B --> C["gpt-5.5 structured output<br/>ResumeData schema"]
-  C --> D["Line-wrap cleanup"]
-  D --> E[("profile.json<br/>+ original file")]
-```
+## 搜索与匹配
 
-- **Input:** a resume file of up to 8 MB.
-- **Output:** a `ResumeData` record (contact details, summary, skills, experience, projects, education and so on) and an `original` resume version.
-- Hyperlink annotations are extracted, so LinkedIn and GitHub URLs hidden behind link text are kept.
+“搜索并挑选岗位”使用 `lib/jobs/discovery.ts`，支持 LinkedIn 公开职位、Stripe Greenhouse 职位板、API.SH 智联以及企业招聘页发现。公开搜索不复用浏览器登录态；简历推荐方向需要用户确认后才搜索。
 
-### 2. Job discovery
+列表初评用于快速排序，详细分析进一步结合完整岗位描述与简历证据，两者不是同一次评分。筛选、收藏和跳过反馈不会发起投递。
 
-```mermaid
-flowchart LR
-  Q["Role + location + sources"] --> LI["LinkedIn guest search<br/>2 pages, optional Easy Apply filter"]
-  Q --> WS["OpenAI web search<br/>Greenhouse / Lever / Ashby URLs"]
-  WS --> V["Verify each URL via ATS API<br/>closed postings dropped"]
-  LI & V --> M["Merge + de-duplicate"]
-  M --> F["Quick fit: one call ranks all jobs<br/>score + reason"]
-  F --> J[("jobs.json")]
-```
+Autopilot 使用 `lib/jobs/search.ts` 的 LinkedIn / 企业招聘页路径，根据门槛选岗，并依次准备简历、启动申请。其来源不等同于手动搜索面板的全部来源。
 
-- **Input:** a free-text role, a location, and the sources to search.
-- **Output:** up to about 30 `Job` records, ranked by `quickFit`.
-- **Pasting a link instead:** the app tries the ATS public API first, then schema.org `JobPosting` JSON-LD, then LLM extraction from the page text.
+## 简历与 PDF
 
-### 3. Match and tailoring
+原始简历和生成版本分开存储。方向模式需要简历与方向；岗位模式还需要有可用 JD 的岗位。岗位定制根据 JD 语言生成中文或英文输出，英文译名不确定时保留待审核稿，用户确认后才生成可下载版本。
 
-```mermaid
-flowchart LR
-  J["Job + full description"] --> MA["Match analysis<br/>score · evidence · gaps · questions"]
-  J --> T["Tailor<br/>gpt-5.5, effort medium"]
-  R["ResumeData + raw text"] --> MA
-  R --> T
-  T --> G["Guardrails in code<br/>restore facts · drop untraceable skills"]
-  G --> P["HTML template → PDF<br/>resume + cover letter"]
-  P --> V[("tailored resume version<br/>with change log")]
-```
+PDF 通过无头浏览器渲染，与填表使用的可见浏览器分开。原始事实保护、技能筛选与结果验证在代码中执行。
 
-- **Input:** the job description and the parsed resume.
-- **Output:** a tailored resume PDF, a cover-letter PDF, a list of `{section, change, reason}` entries, and the job requirements the resume can't evidence.
+## 两步登录
 
-### 4. Application run
+1. `/api/browser` 的 `linkedin-login` 打开普通 Chrome / Edge，使用专用 `browser-profile`；此时不附加自动化或远程调试参数。
+2. 用户手动登录并退出专用窗口。`manual-login.json` 记录进程，页面轮询窗口是否退出，不在输入凭据期间读取浏览器内容。
+3. `check-login` 通过 Playwright 重新打开同一资料目录，检查 LinkedIn 的 `li_at` Cookie。检查不创建申请或提交表单；Cookie 存在不等同于网站确认会话有效。
+4. 填表继续使用持久资料。`browser-channel.json` 记录浏览器类型，避免 Chrome 和 Edge 交叉读取资料。
 
-- **Input:** a job, a resume version, an auto-submit flag, plus your profile, preferences and saved answers.
-- **Output:** a filled application on the employer's site and an `ApplicationRun` record (status, event timeline, token usage, outcome). After your approval, the application is also submitted.
+登录窗口未退出时阻止填表；有活动申请或 Autopilot 时，API 拒绝切换登录窗口。日常浏览器个人资料不会被导入。Google 或招聘站点仍可能要求重新登录或拒绝访问。
 
-The loop is described in the next section.
+## 填表状态与执行
 
-## The browser agent
+每一步读取页面可交互元素、校验信息与截图；模型返回填写、选择、点击、上传、询问或准备提交等动作。执行器验证动作并更新日志、截图与状态。
 
-Each step is **stateless**. The model receives a fresh observation plus a compact action history, rather than a growing transcript, which keeps cost per step roughly constant.
+`running`、`needs_input`、`blocked`、`awaiting_approval` 属于活动状态；结果可能为 `submitted`、`failed` 或 `cancelled`。默认等待提交确认，自动提交是独立选项。验证码与登录由用户完成。任务有步数、令牌与重试上限。
 
-```mermaid
-sequenceDiagram
-  autonumber
-  participant UI as Workspace
-  participant R as Runner (lib/agent/runner.ts)
-  participant C as Chrome tab
-  participant M as gpt-5.5 (Responses API)
+活动控制器保存在进程内，不会跨服务重启继续执行；磁盘记录用于历史展示。API 将未存活的活动记录显示为中断失败。
 
-  UI->>R: POST /api/applications
-  R->>C: open job URL (new tab)
-  loop until finish / step or token cap
-    R->>C: snapshot: number interactive elements (all frames, shadow DOM, open modal only), errors, page text
-    R->>C: screenshot (low detail)
-    R->>M: candidate facts + history + elements + screenshot, with 10 tools
-    M-->>R: tool calls (often several in parallel)
-    R->>C: execute: fill / select / type-ahead / upload / click
-    R->>R: guards: demographic block, retry cap, URL guard, submit gate
-    alt needs information
-      R-->>UI: needs_input (question)
-      UI->>R: answer (saved for future runs)
-    else sign-in / CAPTCHA / verification
-      R-->>UI: blocked
-      UI->>R: continue (user acted in Chrome)
-    else form complete
-      R->>C: browser validation check (:invalid fields)
-      R-->>UI: awaiting_approval (summary + uncertain answers)
-      UI->>R: approve
-      R->>C: click final submit
-    end
-  end
-  R-->>UI: submitted / skipped / failed / cancelled
-```
+## 申请管理与邮件
 
-**Observation** (`lib/agent/snapshot.ts`). A plain-JS script runs in every visible frame and tags interactive elements with `data-ja` ids. It resolves labels from `<label>`, ARIA, legends and nearby question text, and records required/invalid state, values, options and attached files. A detected CAPTCHA is reported only if its challenge frame is actually visible.
+招聘进度与填表运行状态分别存储：总表状态为 `saved / applied / interviewing / offer / rejected / withdrawn`。面试、Offer 等后续进展由用户维护。
 
-**Tools** (`lib/agent/prompts.ts`):
+`saveRun()` 在任务报告提交成功后调用幂等同步。同步失败不会重新向招聘站提交；可从页面补同步。总表提供版本号冲突检测、归档、固定表头、表内滚动、20 条分页与 CSV 导出。详见 [申请管理](APPLICATION_TRACKING.md)。
 
-| Tool | Effect |
-|---|---|
-| `fill_fields` | Batch-fill text inputs, selects, comboboxes, checkboxes and radios |
-| `click` | Buttons, links, tabs and options (final submit is gated) |
-| `upload_file` | Tailored resume or cover letter, into a file input or a file chooser |
-| `navigate`, `press_key`, `wait` | Movement and timing (public http(s) URLs only) |
-| `ask_user` | Pause for missing facts; answers become saved answers |
-| `request_user_action` | Pause for login, CAPTCHA, email verification or account creation |
-| `ready_to_submit` | Ask for approval (or proceed when auto-submit is on) |
-| `finish` | End with `submitted`, `already_applied`, `closed` or `failed` |
+邮件通过 SMTP 发送，需确认收件人、正文与附件；SMTP 授权码保存在本机配置文件，不交给模型，不支持强制 OAuth 的邮箱登录流程。
 
-**Execution** (`lib/agent/actions.ts`):
+## 存储与运行边界
 
-- Options are matched with token and abbreviation scoring ("ind" ≈ "india").
-- Type-ahead fields get a suggestion picked, and if they clear on blur, the value is re-typed with real keystrokes.
-- Every filled value is read back.
-- Hidden checkboxes fall back to clicking their label.
-- Upload buttons without an `<input type=file>` are handled through Playwright's file chooser.
+默认目录 `data/`，可用 `NEXTROLE_DATA_DIR` 覆盖，旧 `ROLEFLOW_DATA_DIR` 仍兼容。包含简历、岗位、运行记录、申请总表、邮件配置、浏览器资料等；全部在 Git 忽略范围内。
 
-**New tabs.** An "Apply" link that opens a new tab, as on LinkedIn's external apply, is followed automatically.
+设计面向单用户、单 Node 服务进程，不是可直接公开部署的多用户服务。`proxy.ts` 限制本机来源，URL 校验阻止自动访问本机与内网地址。详见 [安全说明](../SECURITY.md)。
 
-### Run states
+## 验证与展示
 
-```mermaid
-stateDiagram-v2
-  [*] --> running
-  running --> needs_input: ask_user
-  needs_input --> running: answer
-  running --> blocked: request_user_action
-  blocked --> running: continue
-  running --> awaiting_approval: ready_to_submit
-  awaiting_approval --> running: approve
-  running --> submitted: finish(submitted) after submit click
-  running --> skipped: already applied / closed
-  running --> failed: error · step cap · token cap
-  needs_input --> cancelled: stop
-  blocked --> cancelled: stop
-  awaiting_approval --> cancelled: don't submit
-  running --> cancelled: stop
-```
-
-## Autopilot
-
-`lib/agent/autopilot.ts` chains the pipelines for several jobs in a row:
-
-1. Search with the chosen sources. When LinkedIn is connected, it can restrict results to Easy Apply jobs.
-2. Drop jobs that already have a finished or in-flight run, plus jobs below the minimum fit, and keep the top *N*.
-3. For each job, in sequence: load details, tailor if enabled, start an application run, and wait until it leaves the active states.
-4. **Stop** cancels the current run and leaves the remaining jobs unstarted.
-
-Every pause (questions, sign-ins, approvals) surfaces in the same live agent panel.
-
-## Guardrails
-
-| Risk | Guardrail | Where |
-|---|---|---|
-| Submitting without consent | The final submit click is refused until `ready_to_submit` is approved (or auto-submit is on); submit-like labels are detected. | `runner.ts`, `actions.ts` |
-| Submitting an incomplete form | The browser's own constraint validation must pass before approval or submit. | `actions.ts#invalidFields` |
-| Invented facts | Prompts forbid them. Tailoring restores identity, employers, titles, dates and education in code, and drops skills not in the original. | `ai.ts`, `tailor.ts` |
-| Guessing demographics | With the default "decline" preference, any non-decline answer to a gender, race, age, veteran or disability question is blocked. | `actions.ts#demographicBlock` |
-| Retry loops / cost | Each field+value gets at most 3 attempts, then is handed to the user. Runs are capped at `AGENT_MAX_STEPS` steps and `AGENT_MAX_RUN_TOKENS` input tokens. | `runner.ts` |
-| Prompt injection / SSRF | Page content is labelled untrusted. Navigation and server fetches are limited to hosts that resolve to public addresses, re-checked on every redirect. The agent's browser blocks private-network requests. | `prompts.ts`, `url-safety.ts`, `http.ts`, `browser.ts` |
-| Cross-site requests | `proxy.ts` rejects API calls with a non-localhost `Host` (DNS rebinding) or a foreign `Origin` / `Sec-Fetch-Site` (CSRF). | `proxy.ts`, `request-guard.ts` |
-| Credentials, CAPTCHAs | The app never handles passwords or bypasses CAPTCHAs; the run pauses for the user. | `prompts.ts`, `snapshot.ts` |
-| Network exposure | The server binds to `127.0.0.1`. Private data is excluded from build tracing. | `package.json`, `next.config.ts` |
-
-## Data model and storage
-
-Everything lives under `data/` (configurable with `ROLEFLOW_DATA_DIR`) and is git-ignored.
-
-| File | Contents |
-|---|---|
-| `profile.json` | `ResumeData`, raw resume text, preferences (work authorization, notice period, salary, demographics…), saved answers |
-| `resume-versions.json` + `resumes/<id>/` | Original upload and tailored versions (PDF, cover letter, change log) |
-| `jobs.json` | Fetched jobs keyed by id (`li-*`, `gh-*`, `lv-*`, `ab-*`, `web-*`) |
-| `application-runs.json` | `ApplicationRun` records: status, pending request, events, usage, outcome |
-| `browser-profile/` | The agent's Chrome profile (your own sign-ins) |
-| `linkedin-session.json` | Last observed LinkedIn sign-in state |
-
-Writes go through a per-file queue with atomic rename. Live run state, including screenshots, is held in memory on `globalThis` so it survives dev-server reloads.
-
-## API surface
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET / PUT | `/api/profile` | Profile, resume versions and model info / update preferences and contact details |
-| POST | `/api/resume` | Upload and parse a resume (multipart) |
-| GET | `/api/resume/:id` | Stream a resume version (`?file=cover`, `?download`) |
-| POST | `/api/jobs/search` | Search sources and rank results |
-| POST | `/api/jobs/import` | Load any job URL |
-| GET | `/api/jobs/:id` | Job with full description |
-| POST | `/api/jobs/:id/match` | Match analysis |
-| POST | `/api/jobs/:id/tailor` | Tailored resume and cover letter |
-| GET / POST | `/api/applications` | List runs / start a run |
-| GET | `/api/applications/:id` | Run status and timeline |
-| GET | `/api/applications/:id/screen` | Latest JPEG frame of the agent's tab |
-| POST | `/api/applications/:id/reply` | `answer`, `continue`, `approve`, `cancel` |
-| GET / POST | `/api/autopilot` | Autopilot state / `start`, `stop` |
-| GET / POST | `/api/browser` | LinkedIn session state / open sign-in, close browser |
-
-## Configuration
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `OPENAI_API_KEY` | — | Required |
-| `OPENAI_MODEL` | `gpt-5.5` | Parsing, matching, tailoring, web search |
-| `OPENAI_AGENT_MODEL` | `OPENAI_MODEL` | Browser agent |
-| `BROWSER_CHANNEL` | `chrome` | `chrome`, `msedge` or `chromium` |
-| `HEADLESS` | `false` | Hide the agent's browser (you can't then sign in or solve CAPTCHAs) |
-| `AGENT_MAX_STEPS` | `40` | Model steps per run |
-| `AGENT_MAX_RUN_TOKENS` | `150000` | Input-token budget per run |
-| `ROLEFLOW_DATA_DIR` | `./data` | Where personal data is stored |
-
-## Design decisions
-
-- **DOM map plus screenshot, not pixels alone.** Numbered elements with resolved labels are cheaper and more precise than coordinate clicking. The low-detail screenshot gives the model layout context for custom widgets.
-- **Stateless steps.** Every request carries the current observation and a compact history, so cost stays flat and a run can recover from page changes. Typical live forms (Greenhouse, Lever, Ashby) took 2–5 model calls and 8–13k input tokens.
-- **Safety in code, not just prompts.** Approval, demographics, URL targets, validation and retry limits are enforced by the executor, so a confused or prompt-injected model can't override them.
-- **Local-first.** No database, accounts or hosting. Your data and sign-ins stay on your machine. The trade-off is that it isn't a multi-user service.
-- **ATS-first discovery.** Greenhouse, Lever and Ashby expose public posting APIs and account-free forms, which makes them the most reliable targets. LinkedIn is supported through your own signed-in session.
+- `npm run check`：静态检查与核心测试。
+- `npm run test:tracking-ui`：临时数据和 3101 端口的界面测试；完整运行需设置 `ROLEFLOW_UI_TEST_URL=http://127.0.0.1:3101`。
+- `npm run build`：生产构建。
+- `scripts/capture-showcase.cjs`：拦截所有 API，以虚构数据录制 UI，不调用模型、不发送邮件、不投递。

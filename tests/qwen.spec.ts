@@ -6,7 +6,7 @@ import { planStep } from "../lib/agent/model";
 const schema = z.object({ status: z.literal("ok") });
 const probe = () => structured({ name: "probe", schema, instructions: "Return JSON", input: "Synthetic test" });
 const originalFetch = globalThis.fetch;
-const envNames = ["QWEN_API_KEY","QWEN_MODEL","QWEN_AGENT_MODEL","QWEN_WEB_SEARCH"] as const;
+const envNames = ["QWEN_API_KEY","QWEN_BASE_URL","QWEN_MODEL","QWEN_AGENT_MODEL","QWEN_WEB_SEARCH","OPENAI_API_KEY","OPENAI_API_MODE"] as const;
 let previous: (string | undefined)[];
 test.beforeEach(() => {
   previous = envNames.map(k=>process.env[k]);
@@ -50,11 +50,25 @@ test("browser tools carry images, model override, usage and actions", async()=>{
   expect(read().body).toMatchObject({model:"fixture-vision",messages:[{role:"system"},{role:"user",content:[{type:"text"},{type:"image_url"}]}]});
   expect(read().body.tools).toEqual(expect.arrayContaining([expect.objectContaining({type:"function",function:expect.objectContaining({name:"ready_to_submit"})})]));
 });
-test("missing key, plan key and disabled web search are caught locally",async()=>{
+test("missing key and disabled web search are caught locally",async()=>{
   delete process.env.QWEN_API_KEY;
   await expect(probe()).rejects.toThrow(/QWEN_API_KEY/);
-  process.env.QWEN_API_KEY="sk-sp-local-fixture";
-  expect(keyIssue()).toMatch(/Token Plan/);
-  await expect(probe()).rejects.toThrow(/Token Plan/);
   await expect(webSearch("x","x")).rejects.toThrow(/未启用/);
+});
+
+test("Token Plan keys use the dedicated Chat Completions endpoint",async()=>{
+  process.env.QWEN_API_KEY="sk-sp-local-fixture";
+  const read=mockCompletion({role:"assistant",content:'{"status":"ok"}'});
+  expect(keyIssue()).toBeNull();
+  expect(await probe()).toEqual({status:"ok"});
+  expect(read().url).toBe("https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1/chat/completions");
+});
+
+test("Qwen endpoint override is validated before sending credentials",async()=>{
+  process.env.QWEN_BASE_URL="https://gateway.example/v1";
+  const read=mockCompletion({role:"assistant",content:'{"status":"ok"}'});
+  await probe();
+  expect(read().url).toBe("https://gateway.example/v1/chat/completions");
+  process.env.QWEN_BASE_URL += ";https://other.example/apps/anthropic";
+  await expect(probe()).rejects.toThrow(/只能填写一个/);
 });

@@ -86,15 +86,15 @@ export function JobPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <SourceBadge source={detail.source} />
-            {detail.postedAt && <span className="text-xs text-muted">Posted {timeAgo(detail.postedAt)}</span>}
+            {detail.postedAt && <span className="text-xs text-muted">发布于 {timeAgo(detail.postedAt)}</span>}
           </div>
-          <h2 className="mt-2 text-2xl font-semibold leading-tight tracking-tight">{detail.title || "Job posting"}</h2>
+          <h2 className="mt-2 text-2xl font-semibold leading-tight tracking-tight">{detail.title || "岗位详情"}</h2>
           <p className="mt-1 text-sm text-muted">
             {[detail.company, detail.location, detail.employmentType, detail.seniority].filter(Boolean).join(" · ")}
           </p>
         </div>
         <a href={detail.url} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-line px-3 py-2 text-sm text-muted hover:border-accent hover:text-accent">
-          Open <ArrowUpRight size={14} />
+          查看原文 <ArrowUpRight size={14} />
         </a>
       </div>
 
@@ -106,33 +106,33 @@ export function JobPanel({
       )}
 
       {loading ? (
-        <div className="mt-5"><Spinner label="Loading the full job description…" /></div>
+        <div className="mt-5"><Spinner label="正在读取岗位详情…" /></div>
       ) : detail.description ? (
         <div className="mt-4">
           <button onClick={() => setShowDesc(!showDesc)} className="flex items-center gap-1 text-sm font-semibold text-accent" aria-expanded={showDesc}>
-            Job description <ChevronDown className={`h-4 w-4 transition ${showDesc ? "rotate-180" : ""}`} />
+            岗位描述 <ChevronDown className={`h-4 w-4 transition ${showDesc ? "rotate-180" : ""}`} />
           </button>
           {showDesc && <div className="mt-2 max-h-80 overflow-y-auto whitespace-pre-line rounded-xl bg-paper p-3 text-sm leading-relaxed text-[#45443f]">{detail.description}</div>}
         </div>
       ) : (
-        <div className="mt-4"><Notice tone="warn">The description couldn&apos;t be fetched from the server. The agent can still open and apply on the original page.</Notice></div>
+        <div className="mt-4"><Notice tone="warn">暂时无法读取岗位描述，仍可在原招聘页面查看并申请。</Notice></div>
       )}
 
       {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}
 
       {!hasResume && (
-        <div className="mt-5"><Notice tone="warn">Upload your resume above to analyze the match, tailor a resume and apply.</Notice></div>
+        <div className="mt-5"><Notice tone="warn">先上传简历，即可分析匹配度、定制简历并投递。</Notice></div>
       )}
 
       <div className="mt-6 border-t border-line pt-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Gauge size={17} className="text-accent" />
-            <h3 className="font-semibold">Match analysis</h3>
+            <h3 className="font-semibold">匹配分析</h3>
           </div>
           {!match && (
             <Button variant="secondary" onClick={runMatch} busy={matching} disabled={!hasResume || loading || !detail.description}>
-              Analyze
+              分析匹配度
             </Button>
           )}
         </div>
@@ -140,18 +140,18 @@ export function JobPanel({
           <div className="enter mt-3">
             <div className="flex items-end gap-3">
               <span className="text-4xl font-semibold tracking-tight text-accent">{match.match_score}</span>
-              <span className="mb-1 text-xs text-muted">/ 100 · an estimate, not a verdict</span>
+              <span className="mb-1 text-xs text-muted">/ 100 · 评分仅供参考</span>
             </div>
             <p className="mt-2 text-sm text-[#45443f]">{match.summary}</p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">Evidence</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted">匹配依据</p>
                 {match.matching_evidence.map((x) => (
                   <p key={x} className="mt-1.5 flex gap-1.5 text-sm text-accent-dark"><Check size={15} className="mt-0.5 shrink-0" />{x}</p>
                 ))}
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">Gaps</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted">待补充条件</p>
                 {match.missing_requirements.map((x) => (
                   <p key={x} className="mt-1.5 flex gap-1.5 text-sm text-muted"><Plus size={15} className="mt-0.5 shrink-0" />{x}</p>
                 ))}
@@ -159,7 +159,7 @@ export function JobPanel({
             </div>
             {match.questions_for_user.length > 0 && (
               <div className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
-                <strong>Worth confirming:</strong> {match.questions_for_user.join(" ")}
+                <strong>需要确认：</strong> {match.questions_for_user.join(" ")}
               </div>
             )}
           </div>
@@ -169,36 +169,36 @@ export function JobPanel({
       <div id="apply" className="mt-6 border-t border-line pt-5">
         <div className="flex items-center gap-2">
           <Bot size={17} className="text-accent" />
-          <h3 className="font-semibold">Apply with the browser agent</h3>
+          <h3 className="font-semibold">浏览器辅助投递</h3>
         </div>
         <p className="mt-2 text-sm text-muted">
-          Opens the real application in a visible Chrome window, fills it from your resume and details, uploads your resume, and stops for your approval before submitting.
+          助手会打开 Chrome，根据你的简历和资料填写申请、上传附件，默认提交前等待你确认。
         </p>
         {detail.source === "linkedin" && !linkedInSignedIn && (
-          <div className="mt-3"><Notice tone="warn">LinkedIn jobs need you signed in to LinkedIn in the agent&apos;s browser. Use “Connect LinkedIn” at the top, or the agent will pause and ask you to sign in.</Notice></div>
+          <div className="mt-3"><Notice tone="warn">LinkedIn 投递建议先点击上方“连接 LinkedIn”：在专用窗口手动登录，关闭窗口后检查，再开始填表。</Notice></div>
         )}
         <fieldset className="mt-4 grid gap-2 text-sm">
-          <legend className="mb-1 font-medium">Resume to upload</legend>
+          <legend className="mb-1 font-medium">选择投递简历</legend>
           {tailoredVersion && (
             <label className="flex items-center gap-2 rounded-xl border border-line px-3 py-2">
               <input type="radio" name={`ver-${job.id}`} checked={useTailored} onChange={() => setUseTailored(true)} />
-              <span>Tailored PDF for {detail.company} <span className="text-muted">(+ cover letter)</span></span>
+              <span>为 {detail.company} 定制的 PDF <span className="text-muted">（含求职信）</span></span>
             </label>
           )}
           <label className="flex items-center gap-2 rounded-xl border border-line px-3 py-2">
             <input type="radio" name={`ver-${job.id}`} checked={!useTailored || !tailoredVersion} onChange={() => setUseTailored(false)} disabled={!originalId} />
-            <span>Your original upload</span>
+            <span>原始简历</span>
           </label>
         </fieldset>
         <label className="mt-3 flex items-start gap-2 text-sm">
           <input type="checkbox" className="mt-1" checked={autoSubmit} onChange={(e) => setAutoSubmit(e.target.checked)} />
           <span>
-            Submit automatically when the form is complete
-            <span className="block text-xs text-muted">Off by default: the agent waits for you to review and approve the final click.</span>
+            填写完成后自动提交
+            <span className="block text-xs text-muted">默认关闭：助手会等待你检查并确认最终提交。</span>
           </span>
         </label>
         <Button className="mt-4 w-full py-3" onClick={start} busy={starting} disabled={!hasResume || !chosenVersion || agentBusy || loading}>
-          <Bot size={17} /> {agentBusy ? "Another application is running" : "Run application agent"}
+          <Bot size={17} /> {agentBusy ? "另一个申请正在进行" : "开始填写申请"}
         </Button>
       </div>
     </Card>

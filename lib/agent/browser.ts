@@ -2,8 +2,10 @@ import { promises as fs } from "fs";
 import { chromium, type Browser, type BrowserContext } from "playwright";
 import { config, dataPath } from "../config";
 import { isPublicHttpUrl } from "../url-safety";
+import { UserFacingError } from "../ai";
+import { clearManualLogin, launchManualLogin, manualLoginStatus, rememberBrowserChannel, savedBrowserChannel } from "./manual-login";
 
-type BrowserState = { context?: Promise<BrowserContext>; headless?: Promise<Browser> };
+type BrowserState = { context?: Promise<BrowserContext>; headless?: Promise<Browser>; manualStarting?: boolean };
 // On globalThis so dev-server reloads never launch a second browser on the same profile.
 const state = ((globalThis as { __roleflowBrowser?: BrowserState }).__roleflowBrowser ??= {});
 
@@ -12,9 +14,9 @@ function channels() {
   return [...new Set([preferred, "chrome", "msedge", "chromium"])];
 }
 
-async function withChannelFallback<T>(launch: (channel: string) => Promise<T>) {
+async function withChannelFallback<T>(launch: (channel: string) => Promise<T>, choices = channels()) {
   let last: unknown;
-  for (const channel of channels()) {
+  for (const channel of choices) {
     try {
       return await launch(channel);
     } catch (err) {
@@ -26,14 +28,21 @@ async function withChannelFallback<T>(launch: (channel: string) => Promise<T>) {
 
 // Persistent profile: the user's own sign-ins (LinkedIn, ATS accounts) carry over between runs.
 export function agentContext() {
-  state.context ??= withChannelFallback((channel) =>
-    chromium.launchPersistentContext(dataPath("browser-profile"), {
+  if (state.manualStarting) return Promise.reject(new UserFacingError("正在切换到手动登录，请完成登录并关闭窗口后再填表。"));
+  state.context ??= (async () => {
+    await assertBrowserAvailable();
+    const pinned = await savedBrowserChannel();
+    return withChannelFallback(async (channel) => {
+      const ctx = await chromium.launchPersistentContext(dataPath("browser-profile"), {
       channel,
       headless: config.headless(),
       viewport: { width: 1280, height: 860 },
       acceptDownloads: false,
-    }),
-  ).then(async (ctx) => {
+      });
+      await rememberBrowserChannel(channel).catch(() => {});
+      return ctx;
+    }, pinned ? [pinned] : channels());
+  })().then(async (ctx) => {
     ctx.on("close", () => {
       state.context = undefined;
     });
@@ -48,6 +57,38 @@ export function agentContext() {
     state.context = undefined;
   });
   return state.context;
+}
+
+export async function assertBrowserAvailable() {
+  if (state.manualStarting || (await manualLoginStatus()).manualOpen) {
+    throw new UserFacingError("请先完成手动登录，并关闭全部 NextRole 登录窗口，再开始检查或填表。若仍提示窗口打开，请在该浏览器菜单中选择退出。");
+  }
+}
+
+export async function startManualLogin() {
+  if (state.manualStarting) throw new UserFacingError("正在打开登录窗口，请稍候。");
+  state.manualStarting = true;
+  try {
+    if ((await manualLoginStatus()).manualOpen) throw new UserFacingError("登录窗口已经打开，请切换到该窗口完成登录。");
+    await closeAgentBrowser();
+    await launchManualLogin();
+  } finally { state.manualStarting = false; }
+}
+
+export async function browserStatus() {
+  const manual = await manualLoginStatus();
+  return { open: isAgentBrowserOpen(), linkedin: manual.manualPending ? false : await linkedInSignedIn(), ...manual };
+}
+
+export async function checkManualLogin() {
+  await assertBrowserAvailable();
+  const ctx = await agentContext();
+  // Inspect the saved session, without submitting a form or starting an agent run.
+  const cookies = await ctx.cookies("https://www.linkedin.com");
+  const signedIn = cookies.some(c => c.name === "li_at" && c.value);
+  await clearManualLogin();
+  await linkedInSignedIn();
+  return { ...(await browserStatus()), linkedin: Boolean(signedIn) };
 }
 
 export function isAgentBrowserOpen() {

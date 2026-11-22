@@ -21,15 +21,15 @@ export function History({ runs, selectedId, onOpen }: { runs: ApplicationRun[]; 
     <Card id="history">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <Eyebrow>History</Eyebrow>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight">Applications</h2>
+          <Eyebrow>执行记录</Eyebrow>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">投递历史</h2>
         </div>
         <p className="text-sm text-muted">
-          {submitted} submitted · {runs.length} run{runs.length === 1 ? "" : "s"}
+          已提交 {submitted} 次 · 共 {runs.length} 次执行
         </p>
       </div>
       {runs.length === 0 ? (
-        <p className="mt-4 rounded-2xl bg-paper px-4 py-6 text-center text-sm text-muted">No applications yet. Pick a job and run the agent.</p>
+        <p className="mt-4 rounded-2xl bg-paper px-4 py-6 text-center text-sm text-muted">还没有投递记录。挑选一个岗位，开始你的第一次申请。</p>
       ) : (
         <ul className="mt-4 divide-y divide-line">
           {runs.map((r) => (
@@ -49,7 +49,7 @@ export function History({ runs, selectedId, onOpen }: { runs: ApplicationRun[]; 
                 </span>
                 <span className="text-xs text-muted">{new Date(r.createdAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</span>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${TONE[r.status]}`}>{STATUS_TEXT[r.status]}</span>
-                <a href={r.job.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted hover:text-accent" aria-label="Open job listing">
+                <a href={r.job.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted hover:text-accent" aria-label="打开岗位原文">
                   <ArrowUpRight size={16} />
                 </a>
               </div>

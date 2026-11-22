@@ -1,188 +1,147 @@
 <div align="center">
 
-<img src="docs/screenshots/01-landing.png" alt="Roleflow landing page" width="100%" />
+<img src="public/nextrole-wordmark.svg" alt="NextRole" width="300" />
 
 # NextRole
 
-新版 `/app` 支持指定岗位或简历推荐方向、条件筛选、匹配和可撤销反馈。不配置模型密钥也可搜索 LinkedIn 公开职位；企业招聘页发现需要开启千问联网搜索。参见[岗位搜索使用说明](docs/JOB_DISCOVERY.md)。
+**下一站，去更适合你的地方。**
 
-NextRole is our job application workspace, built on [Roleflow](https://github.com/Deveshu04/roleflow). It adds a Chinese application tracker with interview and offer statuses, manual records, history, filtering, and CSV export.
+中文优先的 AI 求职工作台：发现岗位、分析匹配、定制简历、辅助投递，让每一份申请都有进展可循。
 
-Open `/app/tracking` to manage applications. See [application tracking documentation](docs/APPLICATION_TRACKING.md) for integration and testing. The original Roleflow documentation, screenshots, and demo below describe the upstream foundation; its attribution and license are retained.
+[![CI](https://github.com/rain2create/NextRole/actions/workflows/ci.yml/badge.svg)](https://github.com/rain2create/NextRole/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-177e77.svg)](LICENSE)
+![Next.js](https://img.shields.io/badge/Next.js-16-304752?logo=next.js)
+![Qwen](https://img.shields.io/badge/AI-Qwen-7860a5)
+![Playwright](https://img.shields.io/badge/Browser-Playwright-177e77)
 
-**An open-source AI agent that finds real jobs, tailors your resume to each one, and fills in the actual application in your browser. Nothing is submitted until you approve.**
-
-[![CI](https://github.com/Deveshu04/roleflow/actions/workflows/ci.yml/badge.svg)](https://github.com/Deveshu04/roleflow/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/Deveshu04/roleflow/actions/workflows/codeql.yml/badge.svg)](https://github.com/Deveshu04/roleflow/actions/workflows/codeql.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-3f6357.svg)](LICENSE)
-![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
-![Qwen](https://img.shields.io/badge/Qwen-model%20API-14674f)
-![Playwright](https://img.shields.io/badge/Playwright-browser%20agent-2EAD33?logo=playwright)
-
-[Demo](#demo) · [Features](#features) · [Quick start](#quick-start) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
+[界面演示](#界面演示) · [功能](#功能) · [快速开始](#快速开始) · [模型与搜索配置](#模型与搜索配置) · [开发文档](#开发文档)
 
 </div>
 
-## Demo
+## 界面演示
 
-<a href="docs/media/roleflow-demo.mp4"><img src="docs/media/roleflow-demo.gif" alt="Roleflow demo: search, tailor, and the browser agent filling a real application" width="100%" /></a>
+![NextRole：顶部浮动与主题切换、申请状态总表和表内滚动](docs/media/nextrole-demo.gif)
 
-<p align="center"><a href="docs/media/roleflow-demo.mp4"><b>▶ Watch the full demo (75 s, MP4)</b></a> · made with <a href="video/">Remotion</a></p>
-
-<sub>Real UI and a real agent run on a live Greenhouse posting with a fictional candidate. The run was stopped at the approval step, so nothing was submitted.</sub>
-
-## Why
-
-Applying for jobs is the same loop over and over: find a role, tweak your resume, retype the same answers into another form, upload, repeat. Roleflow automates the loop but keeps you in charge:
-
-- It works on **live listings and the employers' real application forms**, not a sandbox.
-- It **never invents** experience, dates, salary or work authorization. When it doesn't know something, it asks you.
-- It **stops before the final Submit** and shows you exactly what it filled.
-
-## Features
-
-| | |
-|---|---|
-| **Live job search** | Optional Qwen web search discovers company career sites on **Greenhouse, Lever and Ashby**, verified through each ATS's public API. Pasted postings work without web search. |
-| 📄 **Resume understanding** | Upload a PDF or DOCX, or paste Chinese or English resume text. The content is parsed into a structured profile. |
-| 🎯 **Match analysis** | A score with concrete evidence from your resume, the gaps, and the things worth confirming before you apply. |
-| ✍️ **Resume tailoring** | Generate a direction-based or job-specific PDF with Chinese and English layouts. JD language determines job-specific output language, and uncertain English proper names require review before export. Employers, titles, dates and education are restored in code, and skills you never listed are dropped. |
-| 🤖 **Browser agent** | Opens the real application in Chrome and fills it in: text fields, dropdowns, type-aheads, checkboxes and resume uploads. Multi-step and LinkedIn Easy Apply flows are supported. A live view and timeline show every action. |
-| 🙋 **Human in the loop** | Asks for missing facts (and remembers your answers), pauses for sign-ins and CAPTCHAs, and waits for **Approve & submit**. |
-| 🚀 **Autopilot** | Give it a role, a location and a number of applications. It searches, picks the best matches, tailors your resume for each and applies one by one, still stopping for your approval. |
-| 🛡️ **Guardrails in code** | Submit gate, browser-validation check, demographic "decline" enforcement, URL allow-list, retry and token caps. |
-
-## Screenshots
+<p align="center">当前 NextRole 实际界面录制 · 约 10 秒循环 · 使用虚构样本，无真实简历、账号或投递</p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/03-search-and-match.png" alt="Live search results ranked against the resume, with match analysis" /><br/><sub><b>Live search + match analysis.</b> Real listings ranked by fit, with evidence and gaps.</sub></td>
-    <td width="50%"><img src="docs/screenshots/05-agent-review.png" alt="Browser agent paused for review after filling a real Ashby application" /><br/><sub><b>Browser agent.</b> It filled a real Ashby form, uploaded the tailored resume and is waiting for approval.</sub></td>
+    <td width="50%"><img src="docs/media/nextrole-workspace.png" alt="NextRole 中文求职工作台" /><br/><b>求职工作台</b> · 搜索、简历和匹配集中处理</td>
+    <td width="50%"><img src="docs/media/nextrole-tracking.png" alt="NextRole 申请管理：投递、面试和 Offer" /><br/><b>申请管理</b> · 状态总表、面试安排、滚动与分页</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/04-tailored-resume.png" alt="Tailored resume change log and PDF preview" /><br/><sub><b>Tailored resume.</b> Each change explained; anything not on your resume is listed as not claimed.</sub></td>
-    <td><img src="docs/screenshots/06-autopilot.png" alt="Autopilot mode" /><br/><sub><b>Autopilot.</b> Runs from search to submit for several jobs, with a readiness checklist.</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="docs/screenshots/02-workspace.png" alt="Workspace with search and parsed resume" /><br/><sub><b>Workspace.</b> Natural-language search, sources, and the parsed resume profile.</sub></td>
+    <td><img src="docs/media/nextrole-login.png" alt="先手动登录，再交给助手填表" /><br/><b>两步登录</b> · 先完成登录，再复用会话填表</td>
+    <td><img src="docs/media/nextrole-autopilot.png" alt="NextRole 自动投递设置与就绪检查" /><br/><b>自动投递</b> · 按目标岗位与数量依次执行</td>
   </tr>
 </table>
 
-<sub>Screenshots use a fictional candidate.</sub>
+薄荷轻柔、雾紫云朵、清透留白三种外观可切换。顶部 Logo 和卡片轻浮，轨道缓慢旋转；鼠标划过空白底色时产生柔软起伏。支持关闭动效，触屏和系统减少动态效果时保持静态。
 
-## How it works
+## 功能
 
-```mermaid
-flowchart LR
-  R["Resume PDF/DOCX"] --> P["Parse<br/>Qwen structured output"]
-  Q["Role + location"] --> S["Search<br/>LinkedIn · Greenhouse · Lever · Ashby"]
-  P --> M["Match + tailor<br/>resume PDF + cover letter"]
-  S --> M
-  M --> A["Browser agent<br/>observe → decide → act"]
-  A --> H{"Needs you?"}
-  H -- "question / sign-in" --> U["You answer or act"] --> A
-  H -- "form complete" --> V["Approve & submit"] --> D["Application submitted"]
-```
+| 模块 | 现在可以做什么 |
+| --- | --- |
+| 岗位发现 | 指定岗位与地点搜索，或根据简历推荐方向；支持条件筛选、收藏、跳过和撤销反馈 |
+| 简历管理 | 上传 PDF / DOCX 或粘贴文本；管理原始简历与生成版本，支持移除上传记录 |
+| 匹配分析 | 列表初评及详细匹配分析，展示经历证据、差距和待确认信息；两者评估粒度不同，分数不必相同 |
+| 简历定制 | 通用、国企、大厂、外企方向；按方向或岗位 JD 生成 PDF，中英文输出及待确认译名审核 |
+| 浏览器填表 | 填写字段、选择选项、上传附件；遇到缺失信息、登录或验证码时等待人工处理 |
+| 自动投递 | 按目标岗位、地点、匹配门槛和数量，依次搜索、准备简历和填写申请；当前来源为 LinkedIn 与企业招聘页发现 |
+| 申请管理 | 待投递、已投递、面试中、Offer、未通过、已撤回；支持总表、表内滚动与分页、筛选、时间线、归档和 CSV 导出 |
+| 邮件投递 | 配置 SMTP 邮箱，准备并确认邮件内容和附件后发送；与浏览器填表分别执行 |
 
-Each agent step sends the model a numbered map of the page's interactive elements (across iframes, shadow DOM and modals), a low-detail screenshot, your facts and a compact action history. The model replies with tool calls (`fill_fields`, `upload_file`, `click`, `ask_user`, `ready_to_submit`…), which a Playwright executor carries out and verifies.
+**浏览器申请默认在最终提交前等待确认。** 自动提交是单独选项，第一次试用建议保持关闭。面试和 Offer 目前由你手动更新，不会自动读取招聘平台反馈。
 
-The full design, with data flows, state machine, guardrails, data model and API, is in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+## 快速开始
 
-## Quick start
-
-Requirements: **Node.js 20.9+**, **Google Chrome** (or Edge, via `BROWSER_CHANNEL=msedge`), and a **Qwen application API key** for AI features.
+需要 **Node.js 20.9+**、npm，以及本机安装的 **Chrome 或 Edge**。AI 功能需要可用的模型接口；申请总表和部分公开岗位来源可以独立使用。
 
 ```bash
-git clone https://github.com/Deveshu04/roleflow.git
-cd roleflow
+git clone https://github.com/rain2create/NextRole.git
+cd NextRole
 npm install
-cp .env.example .env.local      # then set QWEN_API_KEY
+```
+
+复制 `.env.example` 为 `.env.local`，填写自己的模型配置。
+
+```powershell
+# Windows PowerShell
+Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open **http://127.0.0.1:3000**. The landing page is at `/` and the workspace at `/app`.
+macOS / Linux 使用 `cp .env.example .env.local`，然后运行 `npm run dev`。
 
-1. **Upload or paste your resume**, then open **Application details** and fill in your location, work authorization, notice period and salary expectations, so the agent rarely has to stop and ask.
-2. *(Optional)* Click **Connect LinkedIn** and sign in yourself in the Chrome window that opens. The session stays in the agent's own browser profile, and the app never sees your password.
-3. **Search** for a role or paste a job link, then **Analyze**. Generate a resume in the top **简历定制** (Resume generation) panel before **Run application agent**. Or switch to **Autopilot** to do several jobs in a row.
-4. Answer any question in the agent panel, check the filled form in Chrome, and click **Approve & submit**. **Don't submit** stops the run and leaves the tab open.
+打开 **[http://127.0.0.1:3000/app](http://127.0.0.1:3000/app)**。
 
-### Resume generation
+1. 上传或粘贴简历，补充申请资料中的工作许可、到岗时间等信息。
+2. 搜索岗位并查看匹配；需要时生成一份对应方向或岗位的简历。
+3. 使用 LinkedIn 投递前，点击 **连接 LinkedIn → 打开登录窗口**，在专用窗口手动登录，确认进入 LinkedIn 首页。
+4. 关闭刚才的全部专用登录窗口，再点 **已关闭窗口，检查登录**。日常 Chrome / Edge 的会话不会自动共享给助手。
+5. 先选一个岗位测试填表，检查内容并确认提交；随后在 **申请管理** 维护后续进度。
 
-Choose a direction: general, state-owned enterprises, large companies or foreign companies. **Direction mode** needs a direction and an uploaded or pasted resume; **job mode** also needs a selected job with a usable JD. The generation button stays disabled until those inputs are ready.
+Windows 长期使用可运行 `npm run build`，然后双击 `Start-NextRole.cmd`；重启使用 `Restart-NextRole.cmd`。更新代码后需要重新构建。
 
-For a job-specific resume, a Chinese JD produces Chinese output and an English JD produces English output, including when the foreign-company direction is selected. Without a JD, the foreign-company direction produces English; the other directions follow the source resume language. Every version is generated from the full original resume.
+## 模型与搜索配置
 
-If English names or credentials need confirmation, review the suggested translations in the same panel and select **确认译名并生成 PDF**. Download and preview become available after confirmation. Pending reviews survive refresh, and the original resume remains available separately. Technology names and score fields such as GPA are retained when translating prose into Chinese.
+最小示例：
 
-The Chinese layout orders education, work or internship experience, independent projects and skills. The English layout orders Summary, Education, Experience, Projects, Achievements, Certifications and Skills. Empty sections are hidden.
+```dotenv
+QWEN_API_KEY=填入你自己的密钥
+QWEN_MODEL=填入该接口可用的模型名称
+QWEN_WEB_SEARCH=false
+```
 
-## Configuration
+`QWEN_BASE_URL` 可覆盖默认地址。代码会为 `sk-sp-` 前缀的 Token Plan 密钥选择专用兼容端点；这不代表该套餐提供所有 API 能力，具体模型、接口和额度仍需分别验证。密钥只写在本机 `.env.local` 中。
 
-All settings are environment variables in `.env.local`:
+| 能力 | 接口要求 / 配置 |
+| --- | --- |
+| 简历解析、方向推荐、匹配与定制 | Qwen 路径使用 Chat Completions 与结构化 JSON 输出 |
+| 看网页并填表 | 使用图片输入和工具调用；可通过 `QWEN_AGENT_MODEL` 单独指定具备这些能力的模型 |
+| 企业招聘页发现 | **当前仍调用 `/responses` 与 `web_search`**；仅当网关支持时开启 `QWEN_WEB_SEARCH=true`。Chat Completions 可用不等于此功能可用 |
+| 其他兼容网关 | 未设置 `QWEN_API_KEY` 时，可配置 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、模型名称及 `OPENAI_API_MODE=chat` 或 `responses` |
+| 浏览器选择 | `BROWSER_CHANNEL=chrome` 或 `msedge`；两步手动登录需要安装 Chrome / Edge |
+| 数据目录 | `NEXTROLE_DATA_DIR`，默认 `data/`；兼容旧的 `ROLEFLOW_DATA_DIR` |
 
-| Variable | Default | Description |
-|---|---|---|
-| `OPENAI_API_KEY` | — | Alternative to `QWEN_API_KEY`, for OpenAI or a compatible gateway. Qwen takes priority when both are set. |
-| `OPENAI_BASE_URL` | Official API | Optional compatible API root URL (usually ending in `/v1`). The browser agent requires image input and function tools; live web search requires Responses `web_search`. |
-| `OPENAI_API_MODE` | `responses` | Set to `chat` for gateways that only support Chat Completions. This supports structured generation and the browser agent, but does not add web search support to the gateway. |
-| `OPENAI_MODEL` | `gpt-5.5` | Model for parsing, matching, tailoring and search. |
-| `OPENAI_AGENT_MODEL` | `OPENAI_MODEL` | Model that drives the browser agent. |
-| `QWEN_API_KEY` | — | Qwen usage-based application key for AI features. |
-| `QWEN_MODEL` | `qwen3.7-plus` | Model for parsing, matching, tailoring and optional web search. |
-| `QWEN_AGENT_MODEL` | `QWEN_MODEL` | Browser model with image and function-call support. |
-| `QWEN_WEB_SEARCH` | `false` | Opt in to Responses `web_search`; the selected provider must support this tool. LinkedIn, Greenhouse and API.SH sources do not require it. |
-| `BROWSER_CHANNEL` | `chrome` | `chrome`, `msedge` or `chromium`. |
-| `HEADLESS` | `false` | Hide the agent's browser. You then can't sign in or solve CAPTCHAs. |
-| `AGENT_MAX_STEPS` | `40` | Model steps per application. |
-| `AGENT_MAX_RUN_TOKENS` | `150000` | Input-token budget per application; the run stops and leaves the tab open. |
-| `ROLEFLOW_DATA_DIR` | `./data` | Where resumes, runs and the agent's browser profile are stored. |
+岗位来源分别配置：
 
-**Cost:** each agent step is about 3–6k input tokens. On live Greenhouse, Lever and Ashby forms a full application took 8–13k input tokens. Every run shows its token usage.
+- **LinkedIn 公开职位**：无需模型密钥，但需要网络可达；公开搜索不使用登录窗口的 Cookie，登录不能保证消除 403 / 429。
+- **Stripe 招聘**：读取 Stripe 的公开 Greenhouse 职位板，只覆盖这家公司的岗位。
+- **智联招聘**：通过 API.SH，需要 `APISH_KEY`；每个方向请求第一页。
+- **企业招聘页**：联网发现候选链接后，通过 Greenhouse、Lever、Ashby 公共接口核验。
 
-## Privacy and responsible use
+更多说明见 [岗位搜索](docs/JOB_DISCOVERY.md) 与 [.env.example](.env.example)。
 
-- **Local storage.** Records are stored in the git-ignored `data/` directory. The server binds to `127.0.0.1`. AI operations send relevant resume text, job descriptions or agent page snapshots to Qwen.
-- **Your credentials stay yours.** Roleflow never asks for passwords, never creates accounts and never bypasses CAPTCHAs or bot checks.
-- **You are the applicant.** Review every form before approving. Auto-submit is off by default.
-- **LinkedIn:** automating actions on your LinkedIn account may break LinkedIn's User Agreement and could lead to restrictions. Keep the volume low and apply only to roles you'd apply to by hand.
+## 使用边界与数据
 
-## Development
+- NextRole 是**本机单用户应用**，不是多用户招聘平台。默认监听 `127.0.0.1`。
+- 浏览器填表依赖网站结构和访问策略，不能保证每个表单都成功；Google 登录、验证码、企业官网账号和限流可能需要人工处理。
+- 专用浏览器会保存登录资料。运行记录、简历、邮件配置等默认保存在 `data/`；`.env.local` 和 `data/` 均不纳入 Git。
+- AI 操作会向所配置的模型服务发送相关简历、岗位内容，填表时还会发送网页快照。邮件授权码保存在本机，不交给模型。
+- 总表中的“已投递”来自人工确认或助手报告的提交结果，不等同于招聘平台独立回执。
+
+## 开发文档
 
 ```bash
-npm run dev          # http://127.0.0.1:3000
-npm run check        # lint + typecheck + tests
-npm run build        # production build
-npm test             # agent form-engine tests (no API key needed)
+npm run check             # lint、类型检查、核心测试
+npm run test:tracking-ui  # 独立服务与临时数据的界面测试
+npm run build             # 生产构建
 ```
 
-The tests run the agent's page reader and form filler against fixture forms modelled on Greenhouse, Lever and Ashby, including Lever's location type-ahead, hidden checkboxes, comboboxes, validation and the demographic guard.
+测试需要浏览器：`npx playwright install chromium` 安装测试用 Chromium；使用系统 Chrome 时设置 `PW_CHANNEL=chrome`。UI 测试默认使用系统 Chrome。完整界面测试时将 `ROLEFLOW_UI_TEST_URL` 设为 `http://127.0.0.1:3101`；同一工作目录不能同时运行两个 Next.js 开发服务。
 
-CI runs on every push and pull request:
+| 文档 | 内容 |
+| --- | --- |
+| [架构说明](docs/ARCHITECTURE.md) | 当前模块、模型接口、登录与填表流程 |
+| [申请管理](docs/APPLICATION_TRACKING.md) | 状态模型、同步语义、API 与导出 |
+| [岗位搜索](docs/JOB_DISCOVERY.md) | 搜索来源和首次试用 |
+| [展示素材](docs/media/README.md) | GIF、截图与可复现录制方法 |
+| [贡献指南](CONTRIBUTING.md) | 开发、测试与协作 |
+| [安全说明](SECURITY.md) | 本机运行边界与漏洞报告 |
+| [字体说明](public/fonts/README.md) | 本地字体、子集生成和许可 |
 
-- lint, typecheck and tests on Node 22 and 24
-- a production build
-- gitleaks secret scanning and `npm audit`
-- dependency review
-- CodeQL
+## 致谢与许可
 
-```
-app/            workspace UI and API route handlers
-lib/jobs        job sources, import, ranking, match analysis
-lib/resume      parsing, tailoring, PDF rendering
-lib/agent       browser agent: page snapshot, actions, runner, autopilot
-public/landing  landing page
-tests/          form-engine tests
-video/          Remotion source of the demo video
-docs/           architecture, screenshots, media
-```
+NextRole 基于 [Roleflow](https://github.com/Deveshu04/roleflow) 发展，保留上游作者 Deveshu Pathak 的版权与 [MIT 许可证](LICENSE)。团队在此基础上开发中文工作流、岗位发现、简历定制、邮件投递、申请管理与全站视觉交互。
 
-## Contributing
-
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md), and report security issues privately as described in [SECURITY.md](SECURITY.md).
-
-## License
-
-[MIT](LICENSE) © 2026 Deveshu Pathak
-
-<sub>Built with Next.js, the OpenAI API, Playwright and Remotion. Roleflow is not affiliated with LinkedIn, Greenhouse, Lever or Ashby.</sub>
+字体分别遵循其 OFL 许可。`video/` 和旧 `roleflow-demo.*` 素材是上游历史演示，当前产品展示以本 README 中的 NextRole 录屏为准。

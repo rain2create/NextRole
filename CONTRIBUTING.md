@@ -1,6 +1,6 @@
-# Contributing to Roleflow
+# Contributing to NextRole
 
-Thanks for helping improve Roleflow! This guide covers how to set up the project and what a pull request needs before it can be merged.
+Thanks for helping improve NextRole! This guide covers how to set up the project and what a pull request needs before it can be merged.
 
 ## Ground rules
 
@@ -11,15 +11,15 @@ Thanks for helping improve Roleflow! This guide covers how to set up the project
 ## Setup
 
 ```bash
-git clone https://github.com/Deveshu04/roleflow.git
-cd roleflow
+git clone https://github.com/rain2create/NextRole.git
+cd NextRole
 npm install
 npx playwright install chromium     # browser used by the test suite
-cp .env.example .env.local          # add your OPENAI_API_KEY
+cp .env.example .env.local          # configure QWEN_API_KEY and an available model
 npm run dev                         # http://127.0.0.1:3000
 ```
 
-You only need the API key and Google Chrome for manual end-to-end runs. The automated tests don't call OpenAI.
+Use an available model API and installed Chrome / Edge for manual end-to-end runs. Automated tests use fixtures and do not call live model APIs. Windows PowerShell users can copy the configuration with `Copy-Item .env.example .env.local`.
 
 ## Making a change
 
@@ -33,6 +33,8 @@ You only need the API key and Google Chrome for manual end-to-end runs. The auto
    ```
 
 4. Open a pull request using the template. Describe what changed, why, and how you tested it.
+
+For interface changes, also run `npm run test:tracking-ui` with `ROLEFLOW_UI_TEST_URL=http://127.0.0.1:3101`. That command uses a temporary data directory and installed Chrome (or `PW_CHANNEL`); stop any development server using the same checkout first. See [showcase recording](docs/media/README.md) for synthetic screenshots and GIFs.
 
 ## What CI enforces
 

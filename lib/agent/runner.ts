@@ -6,7 +6,7 @@ import { resumeToText } from "../resume/text";
 import { getProfile, resumeFilePath, saveProfile, saveRun } from "../store";
 import type { ApplicationRun, Job, PendingRequest, Profile, ResumeVersion, RunEvent, RunStatus } from "../types";
 import { ActionError, clickElement, DECLINE, demographicBlock, elementLabel, fillField, invalidFields, isSubmitLike, uploadFile } from "./actions";
-import { agentContext } from "./browser";
+import { agentContext, assertBrowserAvailable } from "./browser";
 import { planStep } from "./model";
 import { isPublicHttpTarget } from "../url-safety";
 import { formatSnapshot, takeSnapshot, type Snapshot } from "./snapshot";
@@ -432,6 +432,7 @@ async function execute(ctl: Ctl, applyUrl: string) {
 }
 
 export async function startApplication(job: Job, version: ResumeVersion, autoSubmit: boolean) {
+  await assertBrowserAvailable();
   if (activeCtl()) throw new UserFacingError("Another application is in progress. Finish or stop it first.");
   const profile = await getProfile();
   if (!profile.resume) throw new UserFacingError("Upload your resume first.");

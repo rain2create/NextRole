@@ -13,7 +13,7 @@ export function fitTone(score?: number) {
   if (score === undefined) return "bg-paper text-muted";
   if (score >= 75) return "bg-soft text-accent-dark";
   if (score >= 55) return "bg-warn-soft text-warn";
-  return "bg-[#f1efea] text-muted";
+  return "bg-paper text-muted";
 }
 
 export function JobList({
@@ -48,7 +48,7 @@ export function JobList({
         const skipped = current?.kind === "skipped";
         return (
           <li key={job.id}>
-            <div className={`enter rounded-2xl border p-4 text-left transition ${selectedId === job.id && !skipped ? "border-accent bg-[#f6f9f7] shadow-[inset_3px_0_0_var(--accent)]" : "border-line bg-card"}`}>
+            <div className={`enter rounded-2xl border p-4 text-left transition ${selectedId === job.id && !skipped ? "border-accent bg-[#f0faf6] shadow-[inset_3px_0_0_var(--accent)]" : "border-line bg-card"}`}>
               {skipped ? (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-muted">{job.title} · {job.company}</p>
@@ -56,7 +56,7 @@ export function JobList({
                 </div>
               ) : (
                 <>
-                  <button type="button" onClick={() => onSelect(job)} className="block w-full text-left" aria-label={`View ${job.title} at ${job.company}`}>
+                  <button type="button" onClick={() => onSelect(job)} className="block w-full text-left" aria-label={`查看 ${job.company} 的 ${job.title}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="font-semibold leading-snug tracking-tight">{job.title}</h3>
@@ -66,8 +66,8 @@ export function JobList({
                         </p>
                       </div>
                       {job.searchView?.match ? <span>精排 {job.searchView.match.match_score}/100</span> : job.quickFit !== undefined && (
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${fitTone(job.quickFit)}`} title="Quick fit from title, seniority and location. Open the job for a full match analysis.">
-                          {job.searchView ? `初评 ${job.quickFit}/100` : `${job.quickFit}% fit`}
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${fitTone(job.quickFit)}`} title="根据职位名称、资历和地点初评；打开岗位后可进行完整匹配分析。">
+                          {job.searchView ? `初评 ${job.quickFit}/100` : `初评 ${job.quickFit}%`}
                         </span>
                       )}
                     </div>
@@ -82,7 +82,7 @@ export function JobList({
                     <SourceBadge source={job.source} />
                     {job.postedAt && <span>{timeAgo(job.postedAt)}</span>}
                     <a href={job.url} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-0.5 hover:text-accent">
-                      Original <ArrowUpRight size={13} aria-hidden />
+                      岗位原文 <ArrowUpRight size={13} aria-hidden />
                     </a>
                   </div>
                   <div className="mt-3 flex items-start justify-between gap-2">

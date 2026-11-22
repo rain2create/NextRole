@@ -5,7 +5,7 @@ import { searchJobs } from "../jobs/search";
 import { tailorForJob } from "../resume/service";
 import { getProfile, getResumeVersion, listRuns } from "../store";
 import type { Job, JobSource, ResumeDirection } from "../types";
-import { agentContext, linkedInSignedIn } from "./browser";
+import { agentContext, assertBrowserAvailable, linkedInSignedIn } from "./browser";
 import { hasActiveRun, replyToRun, startApplication, waitForRunEnd } from "./runner";
 
 export type AutopilotInput = {
@@ -164,6 +164,7 @@ async function pipeline() {
 }
 
 export async function startAutopilot(input: AutopilotInput) {
+  await assertBrowserAvailable();
   if (isActive()) throw new UserFacingError("Autopilot is already running.");
   if (hasActiveRun()) throw new UserFacingError("Finish or stop the application that's in progress first.");
   const profile = await getProfile();

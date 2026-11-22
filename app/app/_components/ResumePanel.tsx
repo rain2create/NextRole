@@ -1,32 +1,32 @@
 "use client";
-import { ChevronDown, Download, FileText, Github, Linkedin, Mail, MapPin, Phone, Upload } from "lucide-react";
-import { useRef, useState, type DragEvent } from "react";
+import { ChevronDown, Download, FileText, Github, Linkedin, Mail, MapPin, Phone, Trash2, Upload } from "lucide-react";
+import { useState, type DragEvent, type RefObject } from "react";
 import type { Preferences, Profile, ResumeData, ResumeVersion } from "@/lib/types";
 import { api, errorText } from "./api";
 import { ResumeGenerationPanel, type ResumeGenerationProps } from "./ResumeGenerationPanel";
 import { Button, Card, Eyebrow, Field, inputCls, Notice, Spinner } from "./ui";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 
 type Contact = ResumeData["contact"];
 const CONTACT_FIELDS: { key: keyof Contact; label: string; placeholder: string }[] = [
-  { key: "location", label: "Current location", placeholder: "e.g. Bengaluru, Karnataka, India" },
-  { key: "phone", label: "Phone (with country code)", placeholder: "e.g. +91 98765 43210" },
-  { key: "linkedin", label: "LinkedIn profile URL", placeholder: "https://www.linkedin.com/in/…" },
-  { key: "website", label: "Portfolio / website", placeholder: "Optional" },
+  { key: "location", label: "当前所在地", placeholder: "例如：中国上海" },
+  { key: "phone", label: "电话（含国家区号）", placeholder: "例如：+86 138 0000 0000" },
+  { key: "linkedin", label: "LinkedIn 个人主页", placeholder: "https://www.linkedin.com/in/…" },
+  { key: "website", label: "作品集 / 个人网站", placeholder: "选填" },
 ];
 
 const PREF_FIELDS: { key: keyof Preferences; label: string; placeholder: string; long?: boolean }[] = [
-  { key: "workAuthorization", label: "Work authorization", placeholder: "e.g. Indian citizen, authorized to work in India" },
-  { key: "requiresSponsorship", label: "Needs visa sponsorship?", placeholder: "Yes / No" },
-  { key: "yearsOfExperience", label: "Years of experience", placeholder: "e.g. 2" },
-  { key: "noticePeriod", label: "Notice period / start date", placeholder: "e.g. 30 days" },
-  { key: "currentCompensation", label: "Current compensation", placeholder: "e.g. 12 LPA" },
-  { key: "expectedCompensation", label: "Expected compensation", placeholder: "e.g. 18 LPA" },
-  { key: "willingToRelocate", label: "Willing to relocate?", placeholder: "Yes / No / Within India" },
-  { key: "pronouns", label: "Pronouns (optional)", placeholder: "Leave blank to skip" },
-  { key: "demographics", label: "EEO / demographic questions", placeholder: "Decline to self-identify" },
-  { key: "extraNotes", label: "Anything else the agent should know", placeholder: "e.g. Prefer hybrid roles; available for interviews after 6pm", long: true },
+  { key: "workAuthorization", label: "工作许可", placeholder: "例如：中国公民，可在中国工作" },
+  { key: "requiresSponsorship", label: "是否需要签证支持", placeholder: "是 / 否" },
+  { key: "yearsOfExperience", label: "工作年限", placeholder: "例如：2 年" },
+  { key: "noticePeriod", label: "离职通知期 / 到岗时间", placeholder: "例如：30 天内可到岗" },
+  { key: "currentCompensation", label: "当前薪资", placeholder: "例如：税前月薪 15,000 元" },
+  { key: "expectedCompensation", label: "期望薪资", placeholder: "例如：税前月薪 20,000 元" },
+  { key: "willingToRelocate", label: "是否愿意异地工作", placeholder: "愿意 / 不愿意 / 仅限国内" },
+  { key: "pronouns", label: "人称代词（选填）", placeholder: "不填写可跳过" },
+  { key: "demographics", label: "平等就业 / 人口统计问题", placeholder: "例如：不愿提供" },
+  { key: "extraNotes", label: "其他申请偏好", placeholder: "例如：倾向混合办公，工作日 18 点后可面试", long: true },
 ];
 
 export function ResumePanel({
@@ -34,14 +34,22 @@ export function ResumePanel({
   versions,
   onChange,
   generation,
+  inputRef,
+  uploading,
+  setUploading,
+  mutationDisabled,
 }: {
   profile: Profile | null;
   versions: ResumeVersion[];
   onChange: () => Promise<void>;
   generation: Omit<ResumeGenerationProps, "hasResume" | "onChange">;
+  inputRef: RefObject<HTMLInputElement | null>;
+  uploading: boolean;
+  setUploading: (busy: boolean) => void;
+  mutationDisabled: boolean;
 }) {
-  const input = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const input = inputRef;
+  const unavailable = uploading || mutationDisabled;
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
   const [drag, setDrag] = useState(false);
@@ -56,7 +64,7 @@ export function ResumePanel({
   const contactDraft = contact ?? resume?.contact ?? null;
 
   const upload = async (file?: File) => {
-    if (!file) return;
+    if (!file || unavailable) return;
     setUploading(true);
     setError("");
     try {
@@ -75,7 +83,7 @@ export function ResumePanel({
   };
 
   const readText = async () => {
-    if (!resumeText.trim() || uploading) return;
+    if (!resumeText.trim() || unavailable) return;
     setUploading(true);
     setError("");
     try {
@@ -84,6 +92,24 @@ export function ResumePanel({
       setPrefs(null);
       setContact(null);
       setResumeText("");
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = async (version: ResumeVersion) => {
+    if (unavailable) return;
+    const current = version.id === profile?.originalResumeId;
+    if (!window.confirm(current
+      ? "移除当前简历？移除后需要重新上传才能启动自动投递。历史投递附件仍保留。"
+      : "从简历版本列表移除此版本？历史投递附件仍保留。")) return;
+    setUploading(true);
+    setError("");
+    try {
+      await api(`/api/resume/${version.id}`, { method: "DELETE" });
+      await onChange();
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -122,27 +148,27 @@ export function ResumePanel({
     <Card id="resume" className="enter">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Eyebrow>Your resume</Eyebrow>
+          <Eyebrow>我的简历</Eyebrow>
           <h2 className="mt-1 text-xl font-semibold tracking-tight">
-            {resume ? resume.name : <>Start with your <span className="serif text-[1.15em] text-muted">resume</span></>}
+            {resume ? resume.name : <>从一份简历开始</>}
           </h2>
           <p className="mt-1 text-sm text-muted">
             {resume
-              ? resume.headline || "The agent only uses facts from here and your application details."
+              ? resume.headline || "助手会使用简历和申请资料中的真实信息来填写表格。"
               : "上传 PDF / DOCX，或直接粘贴中文、英文简历，读取后可按方向或岗位 JD 定制。"}
           </p>
         </div>
         {resume && (
-          <Button variant="secondary" onClick={() => input.current?.click()} busy={uploading}>
+          <Button variant="secondary" onClick={() => input.current?.click()} busy={uploading} disabled={unavailable}>
             <Upload size={15} /> 更换简历文件
           </Button>
         )}
       </div>
 
-      <input ref={input} type="file" accept=".pdf,.docx" className="hidden" onChange={(e) => void upload(e.target.files?.[0])} />
+      <input ref={input} aria-label="上传简历文件" type="file" accept=".pdf,.docx" className="hidden" disabled={unavailable} onChange={(e) => void upload(e.target.files?.[0])} />
 
       <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="简历输入方式">
-        <Button variant={inputMode === "file" ? "secondary" : "ghost"} disabled={uploading} aria-pressed={inputMode === "file"} onClick={() => setInputMode("file")}>上传简历文件</Button>
+        <Button variant={inputMode === "file" ? "secondary" : "ghost"} disabled={unavailable} aria-pressed={inputMode === "file"} onClick={() => { setInputMode("file"); input.current?.click(); }}>上传简历文件</Button>
         <Button variant={inputMode === "text" ? "secondary" : "ghost"} disabled={uploading} aria-pressed={inputMode === "text"} onClick={() => setInputMode("text")}>粘贴简历文本</Button>
       </div>
 
@@ -151,7 +177,7 @@ export function ResumePanel({
           <Field label="中文或英文简历文本" hint={resume ? "读取后将替换当前基础简历；已生成的历史版本仍会保留。" : "可直接输入姓名、联系方式、教育经历、工作经历、项目和技能，保持原有段落即可。"}>
             <textarea aria-label="中文或英文简历文本" rows={8} maxLength={30000} className={inputCls} value={resumeText} disabled={uploading} onChange={(e) => setResumeText(e.target.value)} placeholder="张三\n求职意向：后端开发工程师\n教育经历：……\n工作经历：……\n项目经历：……\n专业技能：……" />
           </Field>
-          <div><Button onClick={readText} busy={uploading} disabled={!resumeText.trim()}>读取简历信息</Button></div>
+          <div><Button onClick={readText} busy={uploading} disabled={!resumeText.trim() || unavailable}>读取简历信息</Button></div>
         </div>
       )}
 
@@ -166,14 +192,14 @@ export function ResumePanel({
           className={`mt-4 grid place-items-center rounded-2xl border border-dashed px-4 py-9 text-center transition ${drag ? "border-accent bg-soft" : "border-line-strong bg-paper"}`}
         >
           {uploading ? (
-            <Spinner label="Reading your resume…" />
+            <Spinner label="正在读取简历…" />
           ) : (
             <>
               <FileText className="text-accent" />
               <p className="mt-2 text-sm font-medium">拖入中文或英文简历</p>
               <p className="text-xs text-muted">PDF 或 DOCX，最大 8 MB；扫描件请先转为可复制文字的文档</p>
-              <Button className="mt-3" onClick={() => input.current?.click()}>
-                <Upload size={15} /> Choose file
+              <Button className="mt-3" disabled={unavailable} onClick={() => input.current?.click()}>
+                <Upload size={15} /> 选择文件
               </Button>
             </>
           )}
@@ -199,14 +225,14 @@ export function ResumePanel({
             ))}
           </div>
           <p className="mt-3 text-xs text-muted">
-            {plural(resume.experience.length, "role", "roles")} · {plural(resume.projects.length, "project", "projects")} ·{" "}
-            {plural(resume.education.length, "education entry", "education entries")} parsed
+            {resume.experience.length} 段工作经历 · {resume.projects.length} 个项目 ·{" "}
+            {resume.education.length} 段教育经历已解析
           </p>
 
           {missing.length > 0 && !open && (
             <div className="mt-4">
               <Notice tone="warn">
-                Add your application details (location, work authorization, notice period, salary) so the agent doesn&apos;t have to stop and ask.
+                补全所在地、工作许可、到岗时间和期望薪资，可减少自动填表时的询问。
               </Notice>
             </div>
           )}
@@ -216,7 +242,7 @@ export function ResumePanel({
             className="mt-4 flex w-full items-center justify-between rounded-xl border border-line px-4 py-3 text-left text-sm font-semibold hover:border-line-strong"
             aria-expanded={open}
           >
-            Application details the agent may use
+            申请资料 · 用于自动填表
             <ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
           </button>
           {open && draft && (
@@ -239,12 +265,12 @@ export function ResumePanel({
                 </div>
               ))}
               <div className="flex items-center gap-3 sm:col-span-2">
-                <Button onClick={savePrefs} busy={saving} disabled={!prefs && !contact}>Save details</Button>
-                {saved && <span className="text-sm text-accent">Saved</span>}
+                <Button onClick={savePrefs} busy={saving} disabled={!prefs && !contact}>保存资料</Button>
+                {saved && <span className="text-sm text-accent">已保存</span>}
               </div>
               {profile!.answers.length > 0 && (
                 <div className="sm:col-span-2">
-                  <p className="mt-2 text-sm font-semibold">Answers you gave the agent</p>
+                  <p className="mt-2 text-sm font-semibold">已保存的问答</p>
                   <ul className="mt-2 grid gap-2">
                     {profile!.answers.slice(-6).reverse().map((a) => (
                       <li key={a.savedAt} className="rounded-xl bg-paper px-3 py-2 text-xs text-muted">
@@ -259,28 +285,31 @@ export function ResumePanel({
             </div>
           )}
 
+        </>
+      )}
           {versions.length > 0 && (
             <div className="mt-5">
-              <p className="text-sm font-semibold">Resume versions</p>
-              <ul className="mt-2 grid gap-2">
+              <p className="text-sm font-semibold">简历版本</p>
+              <ul className="mt-2 grid min-w-0 gap-2">
                 {versions.slice(0, 6).map((v) => (
-                  <li key={v.id} className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2 text-sm">
-                    <span className="min-w-0">
+                  <li key={v.id} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-line px-3 py-2 text-sm" data-testid={`resume-version-${v.id}`}>
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{v.label}</span>
                       <span className="text-xs text-muted">
-                        {v.kind === "tailored" ? "岗位专属 PDF + 求职信" : v.kind === "base" ? "方向版 PDF" : "原始简历"} · {new Date(v.createdAt).toLocaleDateString()}
+                        {v.id === profile?.originalResumeId ? "当前使用 · " : ""}{v.kind === "tailored" ? "岗位专属 PDF + 求职信" : v.kind === "base" ? "方向版 PDF" : "原始简历"} · {new Date(v.createdAt).toLocaleDateString()}
                       </span>
                     </span>
-                    <a href={`/api/resume/${v.id}?download`} className="shrink-0 rounded-lg p-2 text-muted hover:bg-paper hover:text-accent" aria-label={`Download ${v.label}`}>
+                    <a href={`/api/resume/${v.id}?download`} className="shrink-0 rounded-lg p-2 text-muted hover:bg-paper hover:text-accent" aria-label={`下载${v.label}`}>
                       <Download size={16} />
                     </a>
+                    <button type="button" disabled={unavailable} onClick={() => void remove(v)} aria-label={`移除 ${v.label}`} className="inline-flex shrink-0 items-center gap-1 rounded-lg p-2 text-muted hover:bg-paper hover:text-danger disabled:opacity-40">
+                      <Trash2 size={15} /> 移除
+                    </button>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-        </>
-      )}
     </Card>
   );
 }

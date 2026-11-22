@@ -6,7 +6,7 @@ body:
     id: problem
     attributes:
       label: Problem
-      description: What are you trying to do that Roleflow doesn't support well today?
+      description: What are you trying to do that NextRole doesn't support well today?
     validations:
       required: true
   - type: textarea

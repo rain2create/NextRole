@@ -4,13 +4,13 @@
 
 ## 已实现
 
-- 中文总表、公司/岗位搜索、状态与日期筛选、分页及统计。
+- 中文总表、公司/岗位搜索、状态与日期筛选、表内上下滚动、固定表头、分页及统计。
 - 手动新增、修改状态、面试安排、备注、简历关联、归档/恢复。
 - 详情面板、人工/Agent 变更时间线、各次运行使用的简历。
 - Agent 提交结果自动同步，历史记录可通过“同步投递记录”补录。
 - CSV 导出全部符合筛选条件的记录，含 UTF-8 BOM、转义及公式防护。
 
-数据保存在 `data/application-records.json`，遵循 `ROLEFLOW_DATA_DIR`。
+数据保存在 `data/application-records.json`，优先遵循 `NEXTROLE_DATA_DIR`，兼容 `ROLEFLOW_DATA_DIR`。
 单用户、单 Node 服务进程使用；运行状态和招聘进度分别存储。
 面试、Offer、未通过需要人工更新，未接入邮箱或招聘反馈接口。
 
@@ -55,6 +55,7 @@
 ```powershell
 $env:PW_CHANNEL='chrome'
 npm run check
+$env:ROLEFLOW_UI_TEST_URL='http://127.0.0.1:3101'
 npm run test:tracking-ui
 npm run build
 ```
@@ -64,4 +65,4 @@ npm run build
 通过 test:tracking-ui 单独运行。运行 UI 测试前应停止同一目录下的开发服务，
 避免争用 Next.js 开发锁。
 
-当前没有改动模型调用和招聘网站表单逻辑，也没有实施全站视觉改版。
+申请管理与工作台、邮件投递共用 NextRole 导航、字体和三种外观；招聘进度与自动填表执行记录仍独立存储。

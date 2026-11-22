@@ -6,14 +6,14 @@ import { api, errorText } from "./api";
 import { Button, Card, Eyebrow, inputCls, Notice } from "./ui";
 
 export const STATUS_TEXT: Record<ApplicationRun["status"], string> = {
-  running: "Agent is working",
-  needs_input: "Needs your input",
-  blocked: "Waiting for you in the browser",
-  awaiting_approval: "Ready for your review",
-  submitted: "Application submitted",
-  skipped: "Not applied",
-  failed: "Couldn't finish",
-  cancelled: "Stopped",
+  running: "正在填写申请",
+  needs_input: "需要补充信息",
+  blocked: "等待你在浏览器中操作",
+  awaiting_approval: "等待检查与确认",
+  submitted: "申请已提交",
+  skipped: "未投递",
+  failed: "未能完成",
+  cancelled: "已停止",
 };
 
 const ACTIVE = ["running", "needs_input", "blocked", "awaiting_approval"];
@@ -97,18 +97,18 @@ export function RunPanel({
     <Card id="agent" className="enter">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <Eyebrow>Application agent</Eyebrow>
+          <Eyebrow>投递助手</Eyebrow>
           <h2 className={`mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight ${tone}`}>
             {run.status === "running" && <span className="pulse-dot inline-block h-2.5 w-2.5 rounded-full bg-accent" aria-hidden />}
             {STATUS_TEXT[run.status]}
           </h2>
           <p className="mt-1 text-sm text-muted">
-            {run.job.title} · {run.job.company} · step {run.steps} · {(run.usage.inputTokens + run.usage.outputTokens).toLocaleString()} tokens
+            {run.job.title} · {run.job.company} · 第 {run.steps} 步 · {(run.usage.inputTokens + run.usage.outputTokens).toLocaleString()} tokens
           </p>
         </div>
         {active ? (
           <Button variant="danger" onClick={() => reply("cancel")} busy={sending === "cancel"}>
-            <Square size={14} /> Stop agent
+            <Square size={14} /> 停止填写
           </Button>
         ) : (
           run.status !== "submitted" && (
@@ -116,7 +116,7 @@ export function RunPanel({
               variant="secondary"
               disabled={!canRestart}
               busy={sending === "restart"}
-              title={canRestart ? "Open the job again in a fresh tab and start over" : "Another application is running"}
+              title={canRestart ? "重新打开岗位页面，从头填写" : "另一个申请正在进行"}
               onClick={async () => {
                 setSending("restart");
                 setError("");
@@ -129,7 +129,7 @@ export function RunPanel({
                 }
               }}
             >
-              <RotateCcw size={14} /> Run again from start
+              <RotateCcw size={14} /> 重新开始
             </Button>
           )
         )}
@@ -137,9 +137,9 @@ export function RunPanel({
 
       {pending?.type === "question" && (
         <div className="enter mt-5 rounded-2xl border border-[#ecdcb5] bg-warn-soft p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-warn"><UserRound size={16} /> The agent needs information it doesn&apos;t have</p>
+          <p className="flex items-center gap-2 text-sm font-semibold text-warn"><UserRound size={16} /> 请补充以下申请信息</p>
           <p className="mt-2 text-[15px]">{pending.question}</p>
-          {pending.fields.length > 0 && <p className="mt-1 text-xs text-muted">Fields: {pending.fields.join(", ")}</p>}
+          {pending.fields.length > 0 && <p className="mt-1 text-xs text-muted">对应字段：{pending.fields.join(", ")}</p>}
           <form
             className="mt-3 flex flex-col gap-2 sm:flex-row"
             onSubmit={(e) => {
@@ -147,9 +147,9 @@ export function RunPanel({
               void reply("answer", answer);
             }}
           >
-            <input autoFocus value={answer} onChange={(e) => setAnswer(e.target.value)} className={inputCls} placeholder="Your answer (saved for future applications)" aria-label="Your answer" />
+            <input autoFocus value={answer} onChange={(e) => setAnswer(e.target.value)} className={inputCls} placeholder="填写回答，下次申请时可复用" aria-label="你的回答" />
             <Button type="submit" busy={sending === "answer"} disabled={!answer.trim()}>
-              <Send size={15} /> Send
+              <Send size={15} /> 发送回答
             </Button>
           </form>
         </div>
@@ -157,27 +157,27 @@ export function RunPanel({
 
       {pending?.type === "user_action" && (
         <div className="enter mt-5 rounded-2xl border border-[#ecdcb5] bg-warn-soft p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-warn"><Hand size={16} /> Your turn in the Chrome window</p>
+          <p className="flex items-center gap-2 text-sm font-semibold text-warn"><Hand size={16} /> 请在 Chrome 窗口中完成操作</p>
           <p className="mt-2 text-[15px]">{pending.message}</p>
-          <p className="mt-1 text-xs text-muted">The agent never types passwords or solves CAPTCHAs. Do it in the browser window it opened, then continue.</p>
-          <Button className="mt-3" onClick={() => reply("continue")} busy={sending === "continue"}>I&apos;m done — continue</Button>
+          <p className="mt-1 text-xs text-muted">请在助手打开的浏览器中完成登录或验证，再点击继续。</p>
+          <Button className="mt-3" onClick={() => reply("continue")} busy={sending === "continue"}>已完成，继续</Button>
         </div>
       )}
 
       {pending?.type === "approval" && (
         <div className="enter mt-5 rounded-2xl border border-accent/30 bg-soft p-4">
-          <p className="flex items-center gap-2 text-sm font-semibold text-accent-dark"><CheckCircle2 size={16} /> The form is filled. Review it before anything is sent.</p>
+          <p className="flex items-center gap-2 text-sm font-semibold text-accent-dark"><CheckCircle2 size={16} /> 表格已填写，请检查后确认提交。</p>
           <p className="mt-2 text-[15px]">{pending.summary}</p>
           {pending.unresolved.length > 0 && (
-            <p className="mt-2 text-sm text-warn"><strong>Left blank / uncertain:</strong> {pending.unresolved.join("; ")}</p>
+            <p className="mt-2 text-sm text-warn"><strong>留空或待确认：</strong> {pending.unresolved.join("; ")}</p>
           )}
-          <p className="mt-2 text-xs text-muted">Check the filled form in the Chrome window (you can edit any field there), then approve.</p>
+          <p className="mt-2 text-xs text-muted">可在 Chrome 窗口检查并修改表格，确认无误后提交。</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button onClick={() => reply("approve")} busy={sending === "approve"}>
-              <Send size={15} /> Approve &amp; submit
+              <Send size={15} /> 确认并提交
             </Button>
             <Button variant="secondary" onClick={() => reply("cancel")} busy={sending === "cancel"}>
-              Don&apos;t submit
+              取消提交
             </Button>
           </div>
         </div>
@@ -191,7 +191,7 @@ export function RunPanel({
       {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <ol ref={timeline} className="max-h-[520px] space-y-3 overflow-y-auto pr-1" aria-label="Agent activity">
+        <ol ref={timeline} className="max-h-[520px] space-y-3 overflow-y-auto pr-1" aria-label="助手执行进度">
           {run.events.map((e, i) => (
             <li key={i} className="flex gap-2.5 text-sm">
               <span className="mt-0.5"><EventIcon kind={e.kind} /></span>
@@ -205,14 +205,14 @@ export function RunPanel({
         </ol>
         <div>
           <div className="mb-2 flex items-center gap-2 text-xs text-muted">
-            <MonitorPlay size={14} /> {active ? "Live view of the agent's Chrome tab" : "Last view of the agent's tab"}
+            <MonitorPlay size={14} /> {active ? "浏览器实时画面" : "最后一次浏览器画面"}
             {run.currentUrl && <span className="truncate">· {run.currentUrl}</span>}
           </div>
           <div className="overflow-hidden rounded-2xl border border-line bg-paper">
             {/* eslint-disable-next-line @next/next/no-img-element -- live JPEG frames from the agent, not a static asset */}
             <img
               src={`/api/applications/${run.id}/screen?t=${frame}`}
-              alt="Agent browser view"
+              alt="助手浏览器画面"
               className="block aspect-[1280/860] w-full object-cover object-top"
               onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
               onLoad={(e) => ((e.target as HTMLImageElement).style.visibility = "visible")}

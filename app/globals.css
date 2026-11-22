@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --ink: #1d1d1b;
-  --muted: #6f6e69;
-  --paper: #f7f6f2;
+  --ink: #233e45;
+  --muted: #5d7680;
+  --paper: #f4f9fa;
   --card: #ffffff;
-  --line: #e4e2dc;
-  --line-strong: #d3d1ca;
-  --accent: #3f6357;
-  --accent-dark: #2d4a40;
-  --soft: #ecf1ee;
+  --line: #e0ecee;
+  --line-strong: #ccdee1;
+  --accent: #087f74;
+  --accent-dark: #06695f;
+  --soft: #e8f7f2;
   --warn: #8a6516;
   --warn-soft: #fbf3e1;
   --danger: #a23b2c;
@@ -22,17 +22,82 @@ html { background: var(--paper); color: var(--ink); }
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: var(--paper);
+  font-family: var(--font-sans), "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  background: radial-gradient(ellipse at 95% 0, #eaf5fd 0, transparent 32rem), var(--paper);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 button, input, textarea, select { font: inherit; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible {
-  outline: 3px solid #9fc1b4;
+  outline: 2px solid #169c95;
   outline-offset: 2px;
 }
 .serif { font-family: var(--font-serif), "Times New Roman", serif; font-style: italic; font-weight: 400; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+::selection { background: #c7f0e5; color: #164b43; }
+.app-shell { max-width: 1360px; margin: 0 auto; padding: 0 40px 64px; }
+.app-header { min-height: 98px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.brand-mark { display: grid; place-items: center; width: 42px; height: 46px; }
+.app-nav { display: flex; align-items: center; gap: 4px; padding: 5px; border-radius: 16px; border: 1px solid #e2eef0; background: #ffffffc9; }
+.app-nav a { display: flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; padding: 10px 16px; border-radius: 11px; color: var(--muted); font-size: 14px; transition: background .15s; }
+.app-nav a:hover { background: var(--soft); color: var(--ink); }
+.app-nav a[aria-current="page"] { color: var(--accent-dark); background: #e8f7f2; font-weight: 600; }
+.surface { box-shadow: 0 4px 24px -12px #407e8324; }
+.workspace-heading { position: relative; isolation: isolate; overflow: hidden; min-height: 250px; margin: 6px 0 24px; padding: 30px 38px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border: 1px solid #d9eceb; border-radius: 26px; background: linear-gradient(110deg,#e9f8f2 0%,#f2faf8 45%,#e7f3fd 100%); }
+.hero-copy { position: relative; z-index: 1; }
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: #39796e; letter-spacing: .08em; }
+.hero-eyebrow > span { width: 6px; height: 6px; background: #18aa91; border-radius: 50%; }
+.workspace-heading h1 { margin-top: 14px; font-size: 33px; font-weight: 650; letter-spacing: -.035em; line-height: 1.5; }
+.workspace-heading h1 > span { color: #087f74; }
+.workspace-heading p { margin-top: 12px; font-size: 13px; line-height: 1.9; color: #59777e; }
+.journey-art { position: relative; flex-shrink: 0; width: 430px; height: 210px; margin-right: 16px; }
+.journey-orbit { position: absolute; border: 1px solid #91c8cf50; border-radius: 50%; transform: rotate(-25deg); }
+.journey-orbit-one { width: 350px; height: 162px; left: 32px; top: 26px; }
+.journey-orbit-two { width: 240px; height: 214px; left: 98px; top: -6px; transform: rotate(25deg); border-style: dashed; }
+.journey-emblem { position: absolute; top: 46px; left: 178px; transform: rotate(-10deg); filter: drop-shadow(0 15px 15px #6cbebd22); }
+.journey-emblem svg { width: 138px; height: 138px; }
+.journey-chip { display: flex; align-items: center; gap: 10px; position: absolute; padding: 13px 18px 13px 12px; border: 1px solid #ffffff; border-radius: 15px; background: #ffffffeb; box-shadow: 0 12px 30px -15px #5a919945; }
+.journey-chip > span { display: grid; place-items: center; width: 32px; height: 36px; border-radius: 10px; background: #e5f7f1; color: #158774; }
+.journey-chip small { display: block; font-size: 8px; letter-spacing: .1em; color: #7b959b; }
+.journey-chip strong { display: block; margin-top: 4px; font-size: 12px; font-weight: 500; color: #35565c; }
+.journey-chip-search { top: 13px; left: 52px; transform: rotate(-6deg); }
+.journey-chip-resume { bottom: 1px; right: 0; transform: rotate(5deg); }
+.journey-chip-resume > span { background: #eaf4ff; color: #488cc0; }
+.journey-launch { position: absolute; bottom: 18px; left: 45px; display: flex; align-items: center; gap: 7px; color: #40827b; font-size: 11px; }
+.journey-launch svg { border-radius: 50%; background: white; box-sizing: content-box; padding: 7px; }
+.journey-dot { position: absolute; border-radius: 50%; }
+.journey-dot-one { width: 11px; height: 11px; background: #91d4c2; left: 12px; top: 114px; }
+.journey-dot-two { width: 7px; height: 7px; background: #8ac6ec; right: 40px; top: 31px; }
+.mode-tabs { background: #e7f0f2; }
+.workspace-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.workspace-shortcuts { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--muted); }
+.workspace-shortcuts a:hover { color: var(--accent); }
+.search-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+.search-sources > label { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; border: 1px solid var(--line); padding: 6px 10px; font-size: 12px; color: var(--muted); background: #f9fcfd; }
+.search-sources > label:has(input:checked) { background: #f0faf6; border-color: #c9e8dd; color: #236b5f; }
+.search-sources > label:has(input:disabled) { color: #7c9096; background: #f7fafb; }
+.tracking-stats > article { position: relative; overflow: hidden; }
+.tracking-stats > article::after { content: ""; position: absolute; right: -24px; bottom: -40px; width: 135px; height: 135px; border: 25px solid currentColor; border-radius: 50%; opacity: .035; pointer-events: none; }
+@media (max-width: 1050px) {
+  .journey-art { width: 340px; transform: scale(.9); transform-origin: right center; margin-left: -50px; margin-right: -12px; }
+  .journey-chip-search { left: 0; }
+  .journey-emblem { left: 125px; }
+  .journey-orbit-one { left: 0; }
+}
+@media (max-width: 800px) {
+  .journey-art { display: none; }
+  .workspace-heading { min-height: 240px; }
+  .workspace-heading::after { content: ""; position: absolute; z-index: -1; width: 260px; height: 260px; border: 40px solid #77c4ca13; border-radius: 50%; right: -105px; top: 0; }
+}
+@media (max-width: 640px) {
+  .app-shell { padding: 0 16px 40px; }
+  .app-header { padding: 16px 0; gap: 14px; align-items: flex-start; flex-direction: column; }
+  .app-nav { width: 100%; }
+  .app-nav a { flex: 1; padding: 9px 7px; gap: 5px; font-size: 12px; text-align: center; }
+  .workspace-heading { align-items: flex-start; flex-direction: column; padding: 24px; margin-top: 0; min-height: 0; border-radius: 20px; }
+  .workspace-heading h1 { font-size: 27px; }
+  .workspace-heading p { font-size: 12px; }
+}
 @media (prefers-reduced-motion: no-preference) {
   .enter { animation: enter .35s ease-out both; }
   @keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

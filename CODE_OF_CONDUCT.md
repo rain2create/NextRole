@@ -26,7 +26,7 @@ This Code of Conduct applies in all project spaces, including issues, pull reque
 
 ## Enforcement
 
-Report unacceptable behavior to the maintainer by opening a [private security advisory](https://github.com/Deveshu04/roleflow/security/advisories/new) marked "Code of Conduct", or by contacting [@Deveshu04](https://github.com/Deveshu04) directly. All reports are reviewed promptly and kept confidential.
+Report unacceptable behavior to the maintainer by opening a [private security advisory](https://github.com/rain2create/NextRole/security/advisories/new) marked "Code of Conduct", or by contacting [@Deveshu04](https://github.com/Deveshu04) directly. All reports are reviewed promptly and kept confidential.
 
 Maintainers may remove, edit or reject comments, commits, code, issues and other contributions that don't align with this Code of Conduct. They may also temporarily or permanently ban contributors for behavior they deem inappropriate.
 

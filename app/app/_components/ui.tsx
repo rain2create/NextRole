@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 const variants: Record<Variant, string> = {
-  primary: "bg-accent text-white hover:bg-accent-dark border border-accent",
+  primary: "bg-accent text-white hover:bg-accent-dark border border-accent shadow-[0_4px_12px_-5px_#087f7480]",
   secondary: "bg-card text-ink border border-line-strong hover:border-accent hover:text-accent-dark",
   ghost: "text-muted hover:text-ink hover:bg-black/[.04] border border-transparent",
   danger: "bg-card text-danger border border-line-strong hover:border-danger",
@@ -20,7 +20,7 @@ export function Button({
     <button
       {...props}
       disabled={props.disabled || busy}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${variants[variant]} ${className}`}
+      className={`soft-button soft-button-${variant} inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${variants[variant]} ${className}`}
     >
       {busy && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />}
       {children}
@@ -30,14 +30,14 @@ export function Button({
 
 export function Card({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
   return (
-    <section id={id} className={`scroll-mt-6 rounded-3xl border border-line bg-card p-5 sm:p-6 ${className}`}>
+    <section id={id} className={`surface scroll-mt-6 rounded-2xl border border-line bg-card p-5 sm:p-6 ${className}`}>
       {children}
     </section>
   );
 }
 
 export function Eyebrow({ children }: { children: ReactNode }) {
-  return <p className="text-[11px] font-bold uppercase tracking-[.16em] text-accent">{children}</p>;
+  return <p className="text-xs font-medium tracking-wider text-muted">{children}</p>;
 }
 
 export function Notice({ tone = "info", children }: { tone?: "info" | "warn" | "error"; children: ReactNode }) {
@@ -46,7 +46,7 @@ export function Notice({ tone = "info", children }: { tone?: "info" | "warn" | "
       ? "border-[#efcfc8] bg-danger-soft text-danger"
       : tone === "warn"
         ? "border-[#ecdcb5] bg-warn-soft text-warn"
-        : "border-[#d6e3dc] bg-soft text-accent-dark";
+        : "border-line bg-soft text-accent-dark";
   return (
     <p role={tone === "error" ? "alert" : "status"} className={`rounded-2xl border px-4 py-3 text-sm ${cls}`}>
       {children}
@@ -65,7 +65,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 export const inputCls =
-  "w-full rounded-xl border border-line-strong bg-white px-3 py-2.5 text-sm font-normal text-ink placeholder:text-[#a3a29c] outline-none transition focus:border-accent";
+  "soft-input w-full rounded-xl border border-line-strong bg-white px-3 py-2.5 text-sm font-normal text-ink placeholder:text-[#81959c] outline-none transition focus:border-accent focus:ring-2 focus:ring-teal-100";
 
 export function Spinner({ label }: { label: string }) {
   return (
@@ -77,13 +77,9 @@ export function Spinner({ label }: { label: string }) {
 
 export function Logo() {
   return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden>
-      <g transform="rotate(-30 12 12)">
-        <circle cx="7.3" cy="3.2" r="1.45" />
-        <rect x="5.5" y="4.7" width="3.6" height="14.6" rx="1.8" />
-        <rect x="14.9" y="4.7" width="3.6" height="14.6" rx="1.8" />
-        <circle cx="16.7" cy="20.8" r="1.45" />
-      </g>
+    <svg viewBox="0 0 48 48" width="42" height="42" fill="none" aria-hidden>
+      <path d="M6 24C7 12 19 5 38 6C36 19 24 27 6 24Z" fill="#16b8a6" />
+      <path d="M12 40C13 29 25 21 43 22C41 35 29 43 12 40Z" fill="#54aee0" />
     </svg>
   );
 }
@@ -95,7 +91,7 @@ const SOURCE_LABEL: Record<string, string> = {
   greenhouse: "Greenhouse",
   lever: "Lever",
   ashby: "Ashby",
-  web: "Web",
+  web: "企业官网",
 };
 export function SourceBadge({ source }: { source: string }) {
   return (
