@@ -63,7 +63,7 @@ export default function Workspace() {
     loadProfile().catch((err) => setNotice(errorText(err)));
     loadRuns()
       .then((all) => {
-        const live = all.find((r) => ACTIVE.includes(r.status));
+        const live = all.find((r) => r.channel !== "email" && ACTIVE.includes(r.status));
         if (live) setShownRun(live);
       })
       .catch(() => {});
@@ -158,10 +158,10 @@ export default function Workspace() {
   };
 
   const profile = data?.profile ?? null;
-  const planKey = data?.ai.keyKind === "token-plan";
-  const keyPresent = planKey || data?.ai.configured;
+  const planKey = data?.ai?.keyKind === "token-plan";
+  const keyPresent = planKey || data?.ai?.configured;
   const hasResume = Boolean(profile?.resume);
-  const agentBusy = runs.some((r) => ACTIVE.includes(r.status)) || autopilotActive;
+  const agentBusy = runs.some((r) => r.channel !== "email" && ACTIVE.includes(r.status)) || autopilotActive;
   const missingDetails = [
     ...(profile?.resume && !profile.resume.contact.location ? ["current location"] : []),
     ...DETAIL_LABELS.filter(([k]) => profile && !profile.preferences[k]).map(([, label]) => label),
@@ -188,7 +188,7 @@ export default function Workspace() {
             <span className={`h-1.5 w-1.5 rounded-full ${keyPresent ? "bg-accent" : "bg-danger"}`} />
             {planKey ? "已识别 Token Plan 密钥" : data ? (data.ai.configured ? `千问 · ${data.ai.model}（已配置）` : "千问密钥未就绪") : "Connecting…"}
           </span>
-          <button type="button" title="测试千问模型连接（一次模型调用）" aria-label="测试千问连接" disabled={!data?.ai.configured || checking}
+          <button type="button" title="测试千问模型连接（一次模型调用）" aria-label="测试千问连接" disabled={!data?.ai?.configured || checking}
             className="p-2 text-accent disabled:opacity-40" onClick={async () => {
               setChecking(true);
               try {
@@ -208,7 +208,7 @@ export default function Workspace() {
         </div>
       </header>
 
-      {!planKey && data?.ai.issue && (
+      {!planKey && data?.ai?.issue && (
         <div className="mt-5"><Notice tone="error">{data.ai.issue}</Notice></div>
       )}
       {notice && <div className="mt-5"><Notice>{notice}</Notice></div>}
@@ -242,7 +242,7 @@ export default function Workspace() {
       <SearchPanel
         profileLoaded={data!==null}
         hasResume={hasResume}
-        aiReady={Boolean(data?.ai.configured && data.ai.webSearch)}
+        aiReady={Boolean(data?.ai?.configured && data.ai.webSearch)}
         defaultLocation={profile?.resume?.contact.location ?? ""}
         onResults={(found, errors, q) => {
           setJobs(found);
@@ -267,7 +267,7 @@ export default function Workspace() {
         versions={data?.versions ?? []}
         onChange={loadProfile}
         generation={{
-          aiConfigured: Boolean(data?.openai.configured),
+          aiConfigured: Boolean(data?.ai?.configured),
           jobs,
           selectedJob: selected,
           onSelectJob: setSelected,
@@ -316,7 +316,10 @@ export default function Workspace() {
           {feedbackError && <div className="mb-3"><Notice tone="error">{feedbackError}</Notice></div>}
           {searchErrors.length > 0 && <div className="mb-3"><Notice tone="warn">{searchErrors.join(" · ")}</Notice></div>}
           {displayedJobs.length ? (
-            <JobList ranked={displayedJobs} feedback={feedback} selectedId={selected?.id} busyId={feedbackBusyId} onSelect={setSelected} onFeedback={onFeedback} />
+            [...new Set(displayedJobs.map(({job}) => job.searchView?.direction ?? ""))].map(group => <div key={group}>
+              {group && <h3 className="my-2 font-medium">{group}</h3>}
+              <JobList ranked={displayedJobs.filter(({job}) => (job.searchView?.direction ?? "") === group)} feedback={feedback} selectedId={selected?.id} busyId={feedbackBusyId} onSelect={setSelected} onFeedback={onFeedback} />
+            </div>)
           ) : (
             <Card className="text-center">
               <p className="text-sm text-muted">
@@ -359,6 +362,10 @@ export default function Workspace() {
           runs={runs}
           selectedId={shownRun?.id}
           onOpen={(r) => {
+            if (r.channel === "email") {
+              document.getElementById("email-applications")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              return;
+            }
             setShownRun(r);
             setTimeout(() => document.getElementById("agent")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
           }}

@@ -37,11 +37,13 @@ async function mockWorkspace(page: Page, options: { hasResume?: boolean; version
     const req = route.request();
     const pathname = new URL(req.url()).pathname;
     const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-    if (pathname === "/api/profile" && req.method() === "GET") return respond({ profile, versions, translationDrafts, openai: { configured: true, model: "test-model", agentModel: "test-model" } });
+    if (pathname === "/api/profile" && req.method() === "GET") return respond({ profile, versions, translationDrafts, ai: { configured: true, keyKind: "application", issue: null, webSearch: false, model: "test-model", agentModel: "test-model" } });
     if (pathname === "/api/applications" && req.method() === "GET") return respond({ applications: [] });
     if (pathname === "/api/browser" && req.method() === "GET") return respond({ open: false, linkedin: false });
     if (pathname === "/api/autopilot" && req.method() === "GET") return respond({ autopilot: null });
-    if (pathname === "/api/jobs/search") return respond({ jobs: availableJobs, errors: [] });
+    if (pathname === "/api/jobs/discover") return respond({ jobs: availableJobs, errors: [] });
+    if (pathname === "/api/job-feedback") return respond({ feedback: [], savedJobs: [] });
+    if (pathname === "/api/jobs/feedback") return respond({ entries: [] });
     if (pathname === "/api/resume" && req.method() === "POST") {
       textRequests.push(req.postDataJSON());
       profile.resume = structuredClone(resume);
@@ -101,8 +103,8 @@ async function mockWorkspace(page: Page, options: { hasResume?: boolean; version
 }
 
 async function searchFixtureJobs(page: Page) {
-  await page.getByRole("textbox", { name: "What kind of role are you looking for?" }).fill("后端工程师");
-  await page.getByRole("button", { name: "Search jobs", exact: true }).click();
+  await page.getByLabel("目标岗位", { exact: true }).fill("后端工程师");
+  await page.getByRole("button", { name: "搜索岗位", exact: true }).click();
   await expect(page.getByRole("heading", { name: "支付后端工程师", exact: true, level: 2 })).toBeVisible();
 }
 

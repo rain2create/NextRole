@@ -11,7 +11,7 @@ export const GET = route(async () => {
     profile,
     versions,
     translationDrafts: await listTranslationDrafts(profile),
-    ai: { provider: "千问", keyKind: keyKind(), configured: !keyIssue(), issue: keyIssue(), model: config.model(), agentModel: config.agentModel(), webSearch: config.webSearchEnabled() },
+    ai: { provider: config.qwenKey() ? "千问" : "兼容模型", keyKind: keyKind(), configured: !keyIssue(), issue: keyIssue(), model: config.model(), agentModel: config.agentModel(), webSearch: config.webSearchEnabled() },
   });
 });
 

@@ -123,14 +123,15 @@ All settings are environment variables in `.env.local`:
 
 | Variable | Default | Description |
 |---|---|---|
-| `OPENAI_API_KEY` | — | **Required.** Used for parsing, matching, tailoring, web search and the agent. |
-| `OPENAI_BASE_URL` | Official API | Optional compatible Responses API root URL (usually ending in `/v1`). The browser agent requires image input and function tools; live web search requires `web_search`. Chat-Completions-only endpoints are not supported. |
+| `OPENAI_API_KEY` | — | Alternative to `QWEN_API_KEY`, for OpenAI or a compatible gateway. Qwen takes priority when both are set. |
+| `OPENAI_BASE_URL` | Official API | Optional compatible API root URL (usually ending in `/v1`). The browser agent requires image input and function tools; live web search requires Responses `web_search`. |
+| `OPENAI_API_MODE` | `responses` | Set to `chat` for gateways that only support Chat Completions. This supports structured generation and the browser agent, but does not add web search support to the gateway. |
 | `OPENAI_MODEL` | `gpt-5.5` | Model for parsing, matching, tailoring and search. |
 | `OPENAI_AGENT_MODEL` | `OPENAI_MODEL` | Model that drives the browser agent. |
 | `QWEN_API_KEY` | — | Qwen usage-based application key for AI features. |
 | `QWEN_MODEL` | `qwen3.7-plus` | Model for parsing, matching, tailoring and optional web search. |
 | `QWEN_AGENT_MODEL` | `QWEN_MODEL` | Browser model with image and function-call support. |
-| `QWEN_WEB_SEARCH` | `false` | Enable remote job discovery independently of model matching. |
+| `QWEN_WEB_SEARCH` | `false` | Opt in to Responses `web_search`; the selected provider must support this tool. LinkedIn, Greenhouse and API.SH sources do not require it. |
 | `BROWSER_CHANNEL` | `chrome` | `chrome`, `msedge` or `chromium`. |
 | `HEADLESS` | `false` | Hide the agent's browser. You then can't sign in or solve CAPTCHAs. |
 | `AGENT_MAX_STEPS` | `40` | Model steps per application. |

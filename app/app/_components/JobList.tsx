@@ -65,9 +65,9 @@ export function JobList({
                           {job.location && <span className="inline-flex items-center gap-1"><MapPin size={13} aria-hidden />{job.location}</span>}
                         </p>
                       </div>
-                      {job.searchView?.match ? <span>?? {job.searchView.match.match_score}/100</span> : job.quickFit !== undefined && (
+                      {job.searchView?.match ? <span>精排 {job.searchView.match.match_score}/100</span> : job.quickFit !== undefined && (
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${fitTone(job.quickFit)}`} title="Quick fit from title, seniority and location. Open the job for a full match analysis.">
-                          {job.searchView ? `?? ${job.quickFit}/100` : `${job.quickFit}% fit`}
+                          {job.searchView ? `初评 ${job.quickFit}/100` : `${job.quickFit}% fit`}
                         </span>
                       )}
                     </div>

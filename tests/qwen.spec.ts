@@ -34,7 +34,7 @@ test("structured data goes only to the Qwen chat endpoint, without search or GPT
   expect(read().url).toBe("https://maas.qianwenaiapi.com/compatible-mode/v1/chat/completions");
   expect(read().body).toMatchObject({model:"qwen3.7-plus",response_format:{type:"json_schema"}});
   expect(read().body).not.toHaveProperty("tools");
-  expect(read().body).not.toHaveProperty("enable_thinking");
+  expect(read().body).toHaveProperty("enable_thinking", false);
 });
 test("malformed and truncated completions do not pass validation",async()=>{
   mockCompletion({content:'{"status":"no"}'});

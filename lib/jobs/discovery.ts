@@ -14,7 +14,7 @@ export const discoverySchema = z.object({
   query:z.string().trim().min(1,"请指定岗位或先选择简历推荐方向").max(180),
   location:z.string().trim().max(180).default(""),
   sources:z.object({web:z.boolean().default(false), linkedin:z.boolean().default(false), stripe:z.boolean().default(false), zhaopin:z.boolean().default(false)}).refine(s => Object.values(s).some(Boolean),"请至少选择一个来源"),
-  criteria: criteriaSchema.default({}),
+  criteria: criteriaSchema.default(() => criteriaSchema.parse({})),
 });
 export function feedbackFor(job:Job, query:string, entries:SearchFeedback[]) {
   return entries.filter(e => e.reason === "公司" ? normalize(job.company) === normalize(e.company) :

@@ -110,7 +110,7 @@ export async function structured<S extends z.ZodTypeAny>(opts: {
 }
 
 export async function webSearch(instructions: string, input: string) {
-  if (!config.webSearchEnabled()) throw new UserFacingError("Web search is disabled; set QWEN_WEB_SEARCH=true.");
+  if (!config.webSearchEnabled()) throw new UserFacingError("联网搜索未启用，请设置 QWEN_WEB_SEARCH=true。");
   const res = await (config.qwenKey() ? qwenClient() : openai()).responses.create({
     model: config.model(),
     reasoning: { effort: "low" },
